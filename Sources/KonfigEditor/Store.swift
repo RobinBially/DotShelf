@@ -196,9 +196,6 @@ final class Store: ObservableObject {
         statusMessage = "Leere Datei erstellt – Name per Rechtsklick änderbar."
     }
 
-    /// Legt mit einem Klick einen neuen, noch nicht gespeicherten Eintrag an.
-    /// Name und Typ kann der Nutzer danach per Umbenennen anpassen; „Speichern"
-    /// schreibt die Datei dann auf die Festplatte.
     func createFile() {
         let dir = FileManager.default.homeDirectoryForCurrentUser
         let base = "neue-konfiguration"
@@ -210,11 +207,13 @@ final class Store: ObservableObject {
             name = "\(base)-\(n).\(ext)"
             n += 1
         }
-        let new = ConfigFile.custom(path: dir.appendingPathComponent(name).path)
+        let url = dir.appendingPathComponent(name)
+        FileManager.default.createFile(atPath: url.path, contents: Data())
+        let new = ConfigFile.custom(path: url.path)
         files.append(new)
         persistCustomFiles()
         select(new)
-        statusMessage = "Neuer Eintrag – Name/Typ per Rechtsklick änderbar, „Speichern“ legt die Datei an."
+        statusMessage = "Neue Datei angelegt – Name/Typ per Rechtsklick änderbar."
     }
 
     /// Entfernt einen Eintrag aus der Liste (Datei auf dem Datenträger bleibt).
