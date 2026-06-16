@@ -226,17 +226,9 @@ struct SidebarView: View {
                     Button {
                         store.createEmptyFile()
                     } label: {
-                        Image(systemName: "doc.fill")
-                    }
-                    .help("Leere Datei erstellen")
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        store.createFile()
-                    } label: {
                         Image(systemName: "doc.badge.plus")
                     }
-                    .help("Neue Datei erstellen")
+                    .help("Leere Datei erstellen")
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {

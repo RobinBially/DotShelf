@@ -196,26 +196,6 @@ final class Store: ObservableObject {
         statusMessage = "Leere Datei erstellt – Name per Rechtsklick änderbar."
     }
 
-    func createFile() {
-        let dir = FileManager.default.homeDirectoryForCurrentUser
-        let base = "neue-konfiguration"
-        let ext = "json"
-        var name = "\(base).\(ext)"
-        var n = 1
-        while files.contains(where: { $0.url.lastPathComponent == name })
-            || FileManager.default.fileExists(atPath: dir.appendingPathComponent(name).path) {
-            name = "\(base)-\(n).\(ext)"
-            n += 1
-        }
-        let url = dir.appendingPathComponent(name)
-        FileManager.default.createFile(atPath: url.path, contents: Data())
-        let new = ConfigFile.custom(path: url.path)
-        files.append(new)
-        persistCustomFiles()
-        select(new)
-        statusMessage = "Neue Datei angelegt – Name/Typ per Rechtsklick änderbar."
-    }
-
     /// Entfernt einen Eintrag aus der Liste (Datei auf dem Datenträger bleibt).
     /// Funktioniert für eigene wie kuratierte Einträge; bei kuratierten wird
     /// das Ausblenden dauerhaft gemerkt.
