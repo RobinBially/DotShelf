@@ -128,17 +128,6 @@ struct CodeEditor: NSViewRepresentable {
             ruler?.needsDisplay = true
         }
 
-        /// Auto-Kopieren: markierter Text landet sofort in der Zwischenablage.
-        func textViewDidChangeSelection(_ notification: Notification) {
-            guard let textView = textView else { return }
-            let range = textView.selectedRange()
-            guard range.length > 0 else { return }
-            let selected = (textView.string as NSString).substring(with: range)
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            pasteboard.setString(selected, forType: .string)
-        }
-
         func applyHighlight(language: ConfigLanguage) {
             guard let storage = textView?.textStorage else { return }
             SyntaxHighlighter(font: font).highlight(storage, language: language)
