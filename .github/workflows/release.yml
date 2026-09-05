@@ -20,9 +20,11 @@ jobs:
       BUILD_NUMBER: ${{ github.run_number }}
       RELEASE_REPOSITORY: ${{ github.repository }}
       NOTARY_PROFILE: dotshelf-release
-      CODE_SIGN_KEYCHAIN: ${{ runner.temp }}/dotshelf-signing.keychain-db
-      NOTARY_KEYCHAIN: ${{ runner.temp }}/dotshelf-signing.keychain-db
     steps:
+      - name: Set temporary keychain paths
+        run: |
+          printf 'CODE_SIGN_KEYCHAIN=%s/dotshelf-signing.keychain-db\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'NOTARY_KEYCHAIN=%s/dotshelf-signing.keychain-db\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: maxim-lobanov/setup-xcode@1242409711ff5721add51979e9e11e23ebb7e5a4 # v1
         with:
