@@ -69,7 +69,7 @@ To update later, run `brew update && brew upgrade --cask dotshelf`.
 
 ### Direct download
 
-**[Download DotShelf for Mac](https://github.com/RobinBially/DotShelf/releases/download/v0.1.0/DotShelf-0.1.0.zip)**
+**[Download DotShelf for Mac](https://github.com/RobinBially/DotShelf/releases/latest)**
 
 Unzip the download, drag **DotShelf.app** into **Applications**, and open it.
 See the [release notes](https://github.com/RobinBially/DotShelf/releases/latest)
