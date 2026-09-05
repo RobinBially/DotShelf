@@ -4,8 +4,7 @@ Updated September 5, 2026. Original review baseline: the original KonfigEditor a
 
 The initial review found eight release blockers. They have been addressed in the
 DotShelf source, alongside English localization and the distribution
-pipeline. A packaged release, Apple notarization and a second-machine download test
-remain separate release gates.
+pipeline. Version 0.1.0 is available as a signed, notarized Universal app and a Homebrew cask.
 
 ## Original findings and resolution
 
@@ -43,23 +42,21 @@ network filesystems and large-file performance have not been exhaustively tested
 
 ## Distribution
 
-- Initial GitHub state: private repository, no workflows, tags, releases or license.
-- Prepared CI builds and tests; the manual release workflow produces a notarized
-  Universal app, checksum and Homebrew cask as a **draft**.
-- Signing-secret names match Locomni: `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
-  `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`. Secrets were not copied or exported.
-- The new `localfoundry/homebrew-tap` is public and contains search-rotation; DotShelf remains pending its public notarized release. The generated cask needs to be
-  committed there after the release is available; the public install command will
-  be `brew install --cask localfoundry/tap/dotshelf`.
-- The source repository is public under `RobinBially/DotShelf`. Packaged releases remain pending.
+- The source repository is public under `RobinBially/DotShelf`.
+- Version 0.1.0 ships as a Developer-ID-signed, notarized Universal ZIP with a
+  stapled ticket and SHA-256 checksum.
+- `localfoundry/homebrew-tap` contains the generated DotShelf cask:
+  `brew install --cask localfoundry/tap/dotshelf`.
+- CI builds and tests; the manual release workflow can produce notarized Universal
+  builds as drafts once its signing secrets have been configured.
 
 ## Verification
 
 Tests use temporary synthetic files and isolated preferences, never private
 configuration files. The final XCTest run passed **27 tests with zero failures** using full Xcode.
-The local **0.1.0 Universal candidate** is Developer-ID signed with Hardened
-Runtime and a secure timestamp; strict signature verification passes. Apple
-notarization is still pending because no local notary credentials/profile was available.
+The **0.1.0 Universal release** is Developer-ID signed with Hardened Runtime and
+a secure timestamp. Apple notarization, stapling, strict signature verification
+and Gatekeeper assessment pass. The published archive is verified by SHA-256.
 
 - XCTest suite under full Xcode, plus English-catalog and shell/YAML checks.
 - Native app packaging, embedded resource relocation and architecture verification.
@@ -69,13 +66,10 @@ notarization is still pending because no local notary credentials/profile was av
   feedback, Cancel preserving edits for both Quit and window Close, and confirmed
   discard before Reload. The updated screenshot uses the actual views with example data.
 
-## Remaining release gates
+## Follow-up verification
 
-1. Finish Apple notarization of the final candidate and verify its stapled ticket.
-2. Test the downloaded app with Gatekeeper on a second Mac, including Intel and the
-   minimum supported macOS version where hardware is available.
-3. Publish the verified app release, then commit the generated cask to the public LocalFoundry tap.
-4. Run the remote workflows with the configured Apple credentials.
+- Test execution on physical Intel hardware and the minimum supported macOS version.
+- Configure the standalone DotShelf release workflow's Apple secrets for future releases.
 
 Future features are tracked in the [roadmap](ROADMAP.md), and operational details
 in the [release guide](RELEASING.md).

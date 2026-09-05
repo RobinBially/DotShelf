@@ -5,11 +5,11 @@ Updated September 5, 2026. These are proposals, not promised release dates.
 DotShelf is a fast, native workspace for recurring configuration files on a Mac.
 Reliable edits, quick access and a useful change history are the product's focus.
 
-## Before the first packaged release
+## Available now
 
-- Verify the final Developer-ID-signed, notarized download on a second Mac.
-- Publish a verified app release; the source repository and LocalFoundry tap are public.
-- Copy the generated `dotshelf.rb` cask into `localfoundry/homebrew-tap`.
+The first signed, notarized Universal app is available through GitHub Releases and
+`brew install --cask localfoundry/tap/dotshelf`. The source stays on Robin Bially's
+personal profile; LocalFoundry provides distribution.
 
 ## Next
 

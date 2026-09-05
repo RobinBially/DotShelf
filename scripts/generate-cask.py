@@ -42,7 +42,7 @@ def render(version: str, repository: str, archive: pathlib.Path) -> str:
   desc "Native editor for configuration files"
   homepage "https://github.com/{repository}"
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "DotShelf.app"
 end

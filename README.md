@@ -11,6 +11,7 @@ Keep them in one sidebar. Make an edit. Get back to work.
 
 [![macOS](https://img.shields.io/badge/macOS-14%2B-292A36?style=flat-square&logo=apple&logoColor=white)](#get-started)
 [![Swift](https://img.shields.io/badge/SwiftUI_%2B_AppKit-native-7865E9?style=flat-square&logo=swift&logoColor=white)](#why-dotshelf)
+[![Release](https://img.shields.io/github/v/release/RobinBially/DotShelf?style=flat-square&color=7865E9)](https://github.com/RobinBially/DotShelf/releases/latest)
 [![CI](https://github.com/RobinBially/DotShelf/actions/workflows/ci.yml/badge.svg)](https://github.com/RobinBially/DotShelf/actions/workflows/ci.yml)
 
 **[Get started](#get-started)** · **[Features](#a-little-editor-with-the-right-details)** · **[Roadmap](docs/ROADMAP.md)** · **[Feedback](https://github.com/RobinBially/DotShelf/issues)**
@@ -53,11 +54,41 @@ for keyboard shortcuts, default file locations and current limitations.
 
 ## Get started
 
-> **Early preview · build from source today.** The source is public; a packaged,
-> notarized download and Homebrew installation are still being prepared.
+Requires **macOS 14 Sonoma or later**. The Universal app runs on
+**Apple Silicon and Intel Macs**, is signed with Developer ID and notarized by Apple.
 
-Requires **macOS 14 Sonoma or later** and **Xcode 26.3 or newer** to build.
-The app supports Apple Silicon and Intel Macs.
+### Homebrew
+
+```sh
+brew install --cask localfoundry/tap/dotshelf
+```
+
+Homebrew downloads the verified release from this repository through the
+[LocalFoundry tap](https://github.com/localfoundry/homebrew-tap).
+To update later, run `brew update && brew upgrade --cask dotshelf`.
+
+### Direct download
+
+**[Download DotShelf for Mac](https://github.com/RobinBially/DotShelf/releases/download/v0.1.0/DotShelf-0.1.0.zip)**
+
+Unzip the download, drag **DotShelf.app** into **Applications**, and open it.
+See the [release notes](https://github.com/RobinBially/DotShelf/releases/latest)
+for changes and the SHA-256 checksum.
+
+> **Early preview:** DotShelf is ready to try, with more improvements planned.
+> See the [current limitations](docs/USAGE.md#current-limitations) and share feedback through Issues.
+
+### Your first edit
+
+1. **Pick a file** from the sidebar, or use **+** to add an existing one.
+2. **Make your change.** JSON validation updates as you type.
+3. **Press ⌘S.** Backups are enabled by default.
+
+<details>
+<summary><strong>Build from source</strong></summary>
+
+Requires **Xcode 26.3 or newer**. Select your full Xcode installation as the active
+developer directory, then run:
 
 ```sh
 git clone https://github.com/RobinBially/DotShelf.git
@@ -66,19 +97,10 @@ cd DotShelf
 open ~/Applications/DotShelf.app
 ```
 
-Select your full Xcode installation as the active developer directory if needed.
 The build script installs a locally signed app in `~/Applications`.
 See [build options](docs/RELEASING.md#local-builds) for a different destination or a Universal build.
 
-1. **Pick a file** from the sidebar, or use **+** to add an existing one.
-2. **Make your change.** JSON validation updates as you type.
-3. **Press ⌘S.** Backups are enabled by default.
-
-### Homebrew — coming with the first packaged release
-
-DotShelf will be distributed through the [LocalFoundry tap](https://github.com/localfoundry/homebrew-tap).
-The cask is **not available yet**. The [release guide](docs/RELEASING.md)
-tracks the signing, notarization and publication process.
+</details>
 
 ## What's next?
 

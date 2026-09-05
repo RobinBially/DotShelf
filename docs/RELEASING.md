@@ -69,13 +69,29 @@ Before publishing, download the draft artifact, check the checksum and app launc
 
 ## Homebrew installation
 
-The public distribution tap is [`localfoundry/homebrew-tap`](https://github.com/localfoundry/homebrew-tap). It currently contains the search-rotation formula. DotShelf is still pending a public notarized release; the old personal tap is unrelated and is not used for new packages.
-After the verified release has been published, copy its generated `Casks/dotshelf.rb` into that tap, review the version, URL and SHA-256, and commit it there. Do not commit a placeholder checksum or a cask pointing at an unpublished draft. Validate the cask in the tap with Homebrew's available style/audit checks and perform a real install.
+DotShelf is available from the public [`localfoundry/homebrew-tap`](https://github.com/localfoundry/homebrew-tap):
 
-Once those publication steps are complete, the intended installation command is:
-
-```bash
+```sh
 brew install --cask localfoundry/tap/dotshelf
+brew update
+brew upgrade --cask dotshelf
 ```
 
-This command is a release target, not a claim that the cask is available today. The tap is public. Publishing the DotShelf release and committing its generated cask are still pending.
+For each update, publish the verified release first, then copy its generated
+`Casks/dotshelf.rb` into the tap. Review the version, public URL and SHA-256.
+Run `brew style localfoundry/tap/dotshelf` and
+`brew audit --cask --strict --online localfoundry/tap/dotshelf`, then perform a real install.
+The tap CI also installs the app and verifies its signature, stapled ticket and both architectures.
+
+Never publish a placeholder checksum or a cask pointing at an unpublished draft.
+
+## First release and future credentials
+
+Version 0.1.0 was built from a fixed DotShelf source commit in a dedicated GitHub
+Actions signing job using the maintainer's existing Apple signing secrets.
+The secrets stayed in their existing repository; only the notarized ZIP, checksum
+and generated cask were downloaded for publication here.
+
+The standalone DotShelf release workflow still requires the secrets listed above
+to be configured in this repository before it can publish subsequent draft releases.
+The local `release.sh` path is also available with a local notarytool profile.
