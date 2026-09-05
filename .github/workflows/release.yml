@@ -59,6 +59,14 @@ jobs:
           security create-keychain -p "$keychain_password" "$CODE_SIGN_KEYCHAIN"
           security set-keychain-settings -lut 3600 "$CODE_SIGN_KEYCHAIN"
           security unlock-keychain -p "$keychain_password" "$CODE_SIGN_KEYCHAIN"
+          # codesign also searches for the private key and certificate chain here.
+          python3 - <<'PYTHON'
+          import os, shlex, subprocess
+          existing = shlex.split(subprocess.check_output(
+              ["security", "list-keychains", "-d", "user"], text=True))
+          subprocess.run(["security", "list-keychains", "-d", "user", "-s",
+                          os.environ["CODE_SIGN_KEYCHAIN"], *existing], check=True)
+          PYTHON
           security import "$RUNNER_TEMP/certificate.p12" -P "$CSC_KEY_PASSWORD" -k "$CODE_SIGN_KEYCHAIN" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$CODE_SIGN_KEYCHAIN"
           rm "$RUNNER_TEMP/certificate.p12"
