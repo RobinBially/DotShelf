@@ -207,7 +207,7 @@ struct SidebarView: View {
                     fileButton(file)
                 }
             } else {
-                Section("Konfigurationen") {
+                Section(L10n.text("Configurations")) {
                     ForEach(store.files) { file in
                         fileButton(file)
                     }
@@ -228,7 +228,7 @@ struct SidebarView: View {
                     } label: {
                         Image(systemName: "doc.badge.plus")
                     }
-                    .help("Leere Datei erstellen")
+                    .help(L10n.text("Create empty file"))
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -236,7 +236,7 @@ struct SidebarView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
-                    .help("Vorhandene Datei hinzufügen…")
+                    .help(L10n.text("Add existing file…"))
                 }
                 if #available(macOS 26.0, *) {
                     ToolbarSpacer(.fixed, placement: .primaryAction)
@@ -247,7 +247,7 @@ struct SidebarView: View {
                     } label: {
                         Image(systemName: "sidebar.squares.left")
                     }
-                    .help("Seitenleiste einklappen")
+                    .help(L10n.text("Collapse sidebar"))
                 }
             }
         }
@@ -265,7 +265,7 @@ struct SidebarView: View {
         }
         .buttonStyle(.plain)
         .listRowBackground(Color.clear)
-        .help("Seitenleiste ausklappen")
+        .help(L10n.text("Expand sidebar"))
     }
 
     /// Eine klickbare Zeile (voll oder nur Symbol) mit Kontextmenü.
@@ -292,14 +292,14 @@ struct SidebarView: View {
         }
         .contextMenu {
             Button { promptRename(file) } label: {
-                Label("Umbenennen…", systemImage: "pencil")
+                Label(L10n.text("Rename…"), systemImage: "pencil")
             }
             Button { store.symbolPickerTarget = file } label: {
-                Label("Symbol & Farbe ändern…", systemImage: "square.grid.2x2")
+                Label(L10n.text("Change icon & color…"), systemImage: "square.grid.2x2")
             }
             Divider()
             Button(role: .destructive) { store.removeFile(file) } label: {
-                Label("Aus Liste entfernen", systemImage: "trash")
+                Label(L10n.text("Remove from list"), systemImage: "trash")
             }
         }
     }
@@ -320,7 +320,7 @@ struct SidebarView: View {
 
     private var bottomBar: some View {
         Toggle(isOn: $store.autoBackup) {
-            Label("Backup beim Speichern", systemImage: "clock.arrow.circlepath")
+            Label(L10n.text("Back up on save"), systemImage: "clock.arrow.circlepath")
                 .font(.caption)
         }
         .toggleStyle(.switch)
@@ -336,8 +336,8 @@ struct SidebarView: View {
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
         panel.showsHiddenFiles = true          // Dotfiles wie .zshrc anzeigen
-        panel.message = "Konfigurationsdatei(en) auswählen"
-        panel.prompt = "Hinzufügen"
+        panel.message = L10n.text("Choose configuration files")
+        panel.prompt = L10n.text("Add")
         if panel.runModal() == .OK {
             for url in panel.urls {
                 store.addFile(url: url)
@@ -348,10 +348,10 @@ struct SidebarView: View {
     /// Fragt per Dialog einen neuen Dateinamen ab und benennt die Datei um.
     private func promptRename(_ file: ConfigFile) {
         let alert = NSAlert()
-        alert.messageText = "Umbenennen"
-        alert.informativeText = "Neuer Dateiname für „\(file.url.lastPathComponent)“:"
-        alert.addButton(withTitle: "Umbenennen")
-        alert.addButton(withTitle: "Abbrechen")
+        alert.messageText = L10n.text("Rename")
+        alert.informativeText = L10n.format("New filename for “%@”:", file.url.lastPathComponent)
+        alert.addButton(withTitle: L10n.text("Rename"))
+        alert.addButton(withTitle: L10n.text("Cancel"))
 
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
         field.stringValue = file.url.lastPathComponent
@@ -388,7 +388,7 @@ struct FileRow: View {
                             Circle().fill(.orange).frame(width: 6, height: 6)
                         }
                     }
-                    Text(file.exists ? file.subtitle : "nicht vorhanden")
+                    Text(file.exists ? file.subtitle : L10n.text("not found"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -424,7 +424,7 @@ struct FileRow: View {
             }
             .buttonStyle(.plain)
             .handCursor()
-            .help("Symbol & Farbe ändern…")
+            .help(L10n.text("Change icon & color…"))
         }
     }
 
@@ -442,7 +442,7 @@ struct FileRow: View {
             }
             .buttonStyle(.plain)
             .handCursor()
-            .help("Aus Liste entfernen")
+            .help(L10n.text("Remove from list"))
         }
     }
 }
@@ -486,7 +486,7 @@ struct SymbolPickerSheet: View {
                     .frame(width: 30, height: 30)
                     .background(RoundedRectangle(cornerRadius: 7).fill(currentColor.opacity(0.15)))
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Symbol & Farbe")
+                    Text(L10n.text("Icon & color"))
                         .font(.subheadline).bold()
                     Text(file.displayName)
                         .font(.caption2)
@@ -494,7 +494,7 @@ struct SymbolPickerSheet: View {
                         .lineLimit(1)
                 }
                 Spacer()
-                Button("Fertig") { store.symbolPickerTarget = nil }
+                Button(L10n.text("Done")) { store.symbolPickerTarget = nil }
                     .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 12)
@@ -559,7 +559,7 @@ struct SymbolPickerSheet: View {
             }
             .buttonStyle(.plain)
             .handCursor()
-            .help(hex == nil ? "Standardfarbe" : "#\(hex!)")
+            .help(hex == nil ? L10n.text("Default color") : "#\(hex!)")
         }
     }
 

@@ -61,10 +61,11 @@ struct SyntaxHighlighter {
         // Schlüssel: String unmittelbar vor einem Doppelpunkt → Gruppe 1
         apply(SyntaxTheme.key, regex: "(\"(?:[^\"\\\\]|\\\\.)*\")\\s*:",
               to: storage, text: text, group: 1)
-        // Kommentare zuletzt, damit sie auskommentierte Strings überschreiben
+        // Match strings first so comment markers inside URLs remain string-colored.
         if allowComments {
-            apply(SyntaxTheme.comment, regex: "//[^\\n]*", to: storage, text: text)
-            apply(SyntaxTheme.comment, regex: "/\\*[\\s\\S]*?\\*/", to: storage, text: text)
+            apply(SyntaxTheme.comment,
+                  regex: #""(?:[^"\\]|\\.)*"|(//[^\r\n]*|/\*[\s\S]*?\*/)"#,
+                  to: storage, text: text, group: 1)
         }
     }
 

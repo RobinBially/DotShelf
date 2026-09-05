@@ -10,7 +10,7 @@ enum ConfigLanguage {
     var displayName: String {
         switch self {
         case .json:  return "JSON"
-        case .jsonc: return "JSON (mit Kommentaren)"
+        case .jsonc: return L10n.text("JSON with comments")
         case .shell: return "Shell"
         case .yaml:  return "YAML"
         }
@@ -62,7 +62,7 @@ struct ConfigFile: Identifiable, Hashable {
         return ConfigFile(
             id: "custom:" + url.path,
             displayName: url.lastPathComponent,
-            subtitle: "Eigene Datei",
+            subtitle: L10n.text("Custom file"),
             symbol: "doc.text",
             language: detectLanguage(for: url),
             rawPath: url.path,
@@ -120,16 +120,16 @@ extension ConfigFile {
     static let known: [ConfigFile] = [
         ConfigFile(
             id: "claude-settings",
-            displayName: "Claude Code – Settings",
-            subtitle: "Globale Einstellungen",
+            displayName: L10n.text("Claude Code – Settings"),
+            subtitle: L10n.text("Global settings"),
             symbol: "sparkles",
             language: .json,
             rawPath: "~/.claude/settings.json"
         ),
         ConfigFile(
             id: "claude-local-settings",
-            displayName: "Claude Code – Lokaler Modus",
-            subtitle: "Settings für claude-local",
+            displayName: L10n.text("Claude Code – Local mode"),
+            subtitle: L10n.text("Settings for claude-local"),
             symbol: "sparkle",
             language: .json,
             rawPath: "~/.claude-local/settings.json"
@@ -137,7 +137,7 @@ extension ConfigFile {
         ConfigFile(
             id: "opencode",
             displayName: "OpenCode",
-            subtitle: "Provider & Modelle",
+            subtitle: L10n.text("Providers & models"),
             symbol: "chevron.left.forwardslash.chevron.right",
             language: .jsonc,
             rawPath: "~/.config/opencode/opencode.json"
@@ -145,7 +145,7 @@ extension ConfigFile {
         ConfigFile(
             id: "opencode-tui",
             displayName: "OpenCode – TUI",
-            subtitle: "Terminal-Oberfläche",
+            subtitle: L10n.text("Terminal interface"),
             symbol: "macwindow",
             language: .jsonc,
             rawPath: "~/.config/opencode/tui.json"
@@ -153,7 +153,7 @@ extension ConfigFile {
         ConfigFile(
             id: "zshrc",
             displayName: ".zshrc",
-            subtitle: "Aliase, Funktionen, PATH",
+            subtitle: L10n.text("Aliases, functions, PATH"),
             symbol: "terminal",
             language: .shell,
             rawPath: "~/.zshrc"

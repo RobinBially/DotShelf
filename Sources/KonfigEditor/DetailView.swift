@@ -16,9 +16,9 @@ struct DetailView: View {
             .toolbar { toolbarContent(file) }
         } else {
             ContentUnavailableView(
-                "Keine Datei ausgewählt",
+                L10n.text("No file selected"),
                 systemImage: "doc.text",
-                description: Text("Wähle links eine Konfigurationsdatei."))
+                description: Text(L10n.text("Choose a configuration file in the sidebar.")))
         }
     }
 
@@ -46,10 +46,10 @@ struct DetailView: View {
             }
             Spacer()
             if store.hasUnsavedChanges {
-                Label("Ungespeichert", systemImage: "pencil.circle.fill")
+                Label(L10n.text("Unsaved"), systemImage: "pencil.circle.fill")
                     .foregroundStyle(.orange)
             }
-            Text("\(lineCount) Zeilen")
+            Text(lineCount == 1 ? L10n.text("1 line") : L10n.format("%d lines", lineCount))
                 .foregroundStyle(.tertiary)
             zoomControl
         }
@@ -62,13 +62,13 @@ struct DetailView: View {
     private var zoomControl: some View {
         HStack(spacing: 2) {
             Button { store.zoomOut() } label: { Image(systemName: "minus") }
-                .help("Kleiner (⌘-)")
+                .help(L10n.text("Zoom out (⌘−)"))
             Text("\(Int(store.fontSize)) pt")
                 .foregroundStyle(.secondary)
                 .frame(width: 34)
                 .monospacedDigit()
             Button { store.zoomIn() } label: { Image(systemName: "plus") }
-                .help("Größer (⌘+)")
+                .help(L10n.text("Zoom in (⌘+)"))
         }
         .buttonStyle(.borderless)
         .font(.caption)
@@ -80,10 +80,10 @@ struct DetailView: View {
         case .notApplicable:
             EmptyView()
         case .valid:
-            Label("JSON gültig", systemImage: "checkmark.seal.fill")
+            Label(L10n.text("Valid JSON"), systemImage: "checkmark.seal.fill")
                 .foregroundStyle(.green)
         case .invalid(let msg):
-            Label("JSON ungültig: \(msg)", systemImage: "xmark.seal.fill")
+            Label(L10n.format("Invalid JSON: %@", msg), systemImage: "xmark.seal.fill")
                 .foregroundStyle(.red)
                 .lineLimit(1)
                 .help(msg)
@@ -114,34 +114,34 @@ struct DetailView: View {
             Button {
                 store.reload()
             } label: {
-                Label("Neu laden", systemImage: "arrow.clockwise")
+                Label(L10n.text("Reload"), systemImage: "arrow.clockwise")
             }
-            .help("Vom Datenträger neu laden (verwirft Änderungen)")
+            .help(L10n.text("Reload from disk"))
 
             if file.language.isJSONLike {
                 Button {
                     store.formatJSON()
                 } label: {
-                    Label("Formatieren", systemImage: "wand.and.stars")
+                    Label(L10n.text("Format"), systemImage: "wand.and.stars")
                 }
-                .help("JSON hübsch formatieren")
+                .help(L10n.text("Format JSON"))
             }
 
             Button {
                 store.revealInFinder()
             } label: {
-                Label("Im Finder", systemImage: "folder")
+                Label(L10n.text("Finder"), systemImage: "folder")
             }
-            .help("Im Finder anzeigen")
+            .help(L10n.text("Show in Finder"))
 
             Button {
                 store.save()
             } label: {
-                Label("Speichern", systemImage: "square.and.arrow.down")
+                Label(L10n.text("Save"), systemImage: "square.and.arrow.down")
             }
             .keyboardShortcut("s", modifiers: .command)
             .disabled(!store.hasUnsavedChanges)
-            .help("Speichern (⌘S)")
+            .help(L10n.text("Save (⌘S)"))
         }
     }
 }

@@ -48,7 +48,7 @@ final class Store: ObservableObject {
         "cpu", "memorychip", "gauge", "tag", "bookmark", "flag", "bell", "envelope"
     ]
 
-    @Published var text: String = ""
+    @Published var text: String = "" { didSet { revalidate() } }
     @Published var originalText: String = ""
     @Published var validation: ValidationState = .notApplicable
     @Published var statusMessage: String = ""
@@ -78,19 +78,36 @@ final class Store: ObservableObject {
     /// Selbst gewählte Symbolfarben (id → Hex).
     private var colorOverrides: [String: String] = [:]
 
-    init() {
-        removedKnownIDs = UserDefaults.standard.stringArray(forKey: removedKnownKey) ?? []
-        knownPathOverrides =
-            (UserDefaults.standard.dictionary(forKey: knownOverridesKey) as? [String: String]) ?? [:]
-        symbolOverrides =
-            (UserDefaults.standard.dictionary(forKey: symbolOverridesKey) as? [String: String]) ?? [:]
-        colorOverrides =
-            (UserDefaults.standard.dictionary(forKey: colorOverridesKey) as? [String: String]) ?? [:]
+    enum PendingChangesDecision { case save, discard, cancel }
 
-        files = (ConfigFile.known
+    private let defaults: UserDefaults
+    private let newFileDirectory: URL
+    private let pendingChangesDecision: ((ConfigFile) -> PendingChangesDecision)?
+    private let confirmCommentRemoval: (() -> Bool)?
+    private var diskBaseline: FileDocument?
+
+    init(initialFiles: [ConfigFile]? = nil, defaults: UserDefaults = .standard,
+         newFileDirectory: URL? = nil,
+         pendingChangesDecision: ((ConfigFile) -> PendingChangesDecision)? = nil,
+         confirmCommentRemoval: (() -> Bool)? = nil) {
+        self.defaults = defaults
+        self.newFileDirectory = newFileDirectory ?? FileManager.default.homeDirectoryForCurrentUser
+        self.pendingChangesDecision = pendingChangesDecision
+        self.confirmCommentRemoval = confirmCommentRemoval
+        _autoBackup = AppStorage(wrappedValue: true, "autoBackup", store: defaults)
+        _fontSize = AppStorage(wrappedValue: 13, "editorFontSize", store: defaults)
+        removedKnownIDs = defaults.stringArray(forKey: removedKnownKey) ?? []
+        knownPathOverrides =
+            (defaults.dictionary(forKey: knownOverridesKey) as? [String: String]) ?? [:]
+        symbolOverrides =
+            (defaults.dictionary(forKey: symbolOverridesKey) as? [String: String]) ?? [:]
+        colorOverrides =
+            (defaults.dictionary(forKey: colorOverridesKey) as? [String: String]) ?? [:]
+
+        files = ((initialFiles ?? ConfigFile.known)
             .filter { !removedKnownIDs.contains($0.id) }
             .map { applyKnownOverride($0) }
-            + loadCustomFiles())
+            + (initialFiles == nil ? loadCustomFiles() : []))
             .map { applySymbolOverride($0) }
             .map { applyColorOverride($0) }
 
@@ -109,29 +126,29 @@ final class Store: ObservableObject {
     // MARK: - Eigene Dateien
 
     private func loadCustomFiles() -> [ConfigFile] {
-        let paths = UserDefaults.standard.stringArray(forKey: customFilesKey) ?? []
+        let paths = defaults.stringArray(forKey: customFilesKey) ?? []
         return paths.map { ConfigFile.custom(path: $0) }
     }
 
     private func persistCustomFiles() {
         let paths = files.filter { $0.isCustom }.map { $0.url.path }
-        UserDefaults.standard.set(paths, forKey: customFilesKey)
+        defaults.set(paths, forKey: customFilesKey)
     }
 
     private func persistRemovedKnown() {
-        UserDefaults.standard.set(removedKnownIDs, forKey: removedKnownKey)
+        defaults.set(removedKnownIDs, forKey: removedKnownKey)
     }
 
     private func persistKnownOverrides() {
-        UserDefaults.standard.set(knownPathOverrides, forKey: knownOverridesKey)
+        defaults.set(knownPathOverrides, forKey: knownOverridesKey)
     }
 
     private func persistSymbolOverrides() {
-        UserDefaults.standard.set(symbolOverrides, forKey: symbolOverridesKey)
+        defaults.set(symbolOverrides, forKey: symbolOverridesKey)
     }
 
     private func persistColorOverrides() {
-        UserDefaults.standard.set(colorOverrides, forKey: colorOverridesKey)
+        defaults.set(colorOverrides, forKey: colorOverridesKey)
     }
 
     /// Verschiebt einen Override-Eintrag von einer id auf eine andere.
@@ -164,42 +181,52 @@ final class Store: ObservableObject {
     /// Fügt eine Datei hinzu und wählt sie aus (Duplikate werden nur ausgewählt).
     func addFile(url: URL) {
         let new = ConfigFile.custom(path: url.path)
-        if let existing = files.first(where: { $0.id == new.id }) {
+        if let existing = files.first(where: { $0.url.standardizedFileURL == url.standardizedFileURL }) {
             select(existing)
             return
         }
+        guard confirmPendingChanges() else { return }
         // Gespeicherte Symbol-/Farb-Overrides anwenden – wie beim Start (init).
         files.append(applyColorOverride(applySymbolOverride(new)))
         persistCustomFiles()
-        select(new)
+        activate(new)
     }
 
     /// Erzeugt eine leere Datei auf der Festplatte und fügt sie sofort zur
     /// Seitenleiste hinzu. Kein Dialog – Standardname, später umbenennbar.
     func createEmptyFile() {
-        let dir = FileManager.default.homeDirectoryForCurrentUser
-        let base = "leere-datei"
+        guard confirmPendingChanges() else { return }
+        let dir = newFileDirectory
+        let base = "untitled"
         let ext = "txt"
         var name = "\(base).\(ext)"
         var n = 1
         while files.contains(where: { $0.url.lastPathComponent == name })
-            || FileManager.default.fileExists(atPath: dir.appendingPathComponent(name).path) {
+            || FileDocument.entryExists(dir.appendingPathComponent(name)) {
             name = "\(base)-\(n).\(ext)"
             n += 1
         }
         let url = dir.appendingPathComponent(name)
-        FileManager.default.createFile(atPath: url.path, contents: nil)
+        do {
+            let baseline = try FileDocument.read(url)
+            guard baseline.data == nil else { throw FileDocument.AccessError.conflict }
+            _ = try baseline.write("", at: url, backup: false)
+        } catch {
+            lastError = L10n.format("Could not create file: %@", error.localizedDescription)
+            return
+        }
         let new = ConfigFile.custom(path: url.path)
         files.append(applyColorOverride(applySymbolOverride(new)))
         persistCustomFiles()
-        select(new)
-        statusMessage = "Leere Datei erstellt – Name per Rechtsklick änderbar."
+        activate(new)
+        statusMessage = L10n.text("Empty file created. Right-click to rename it.")
     }
 
     /// Entfernt einen Eintrag aus der Liste (Datei auf dem Datenträger bleibt).
     /// Funktioniert für eigene wie kuratierte Einträge; bei kuratierten wird
     /// das Ausblenden dauerhaft gemerkt.
     func removeFile(_ file: ConfigFile) {
+        guard selection != file.id || confirmPendingChanges() else { return }
         files.removeAll { $0.id == file.id }
         // Symbol-/Farb-Overrides dieses Eintrags aufräumen – einheitlich für
         // kuratierte wie eigene Einträge.
@@ -217,10 +244,12 @@ final class Store: ObservableObject {
         }
         if selection == file.id {
             if let first = files.first {
-                select(first)
+                activate(first)
             } else {
                 selection = nil
                 text = ""; originalText = ""
+                diskBaseline = nil
+                validation = .notApplicable
             }
         }
     }
@@ -236,17 +265,24 @@ final class Store: ObservableObject {
         let newURL = file.url.deletingLastPathComponent().appendingPathComponent(trimmed)
         let fm = FileManager.default
 
-        if fm.fileExists(atPath: file.url.path) {
-            guard !fm.fileExists(atPath: newURL.path) else {
-                lastError = "Umbenennen fehlgeschlagen: „\(trimmed)“ existiert bereits."
-                return
+        guard !FileDocument.entryExists(newURL) else {
+            lastError = L10n.format("Could not rename: %@ already exists.", trimmed)
+            return
+        }
+        guard FileDocument.entryExists(file.url) else {
+            lastError = L10n.text("Could not rename: the source file no longer exists.")
+            return
+        }
+        do {
+            if selection == file.id {
+                guard let diskBaseline else { throw FileDocument.AccessError.unreadable }
+                try diskBaseline.checkUnchanged(at: file.url)
             }
-            do {
-                try fm.moveItem(at: file.url, to: newURL)
-            } catch {
-                lastError = "Umbenennen fehlgeschlagen: \(error.localizedDescription)"
-                return
-            }
+            try fm.moveItem(at: file.url, to: newURL)
+            if selection == file.id { diskBaseline = diskBaseline?.relocated(to: newURL) }
+        } catch {
+            lastError = L10n.format("Could not rename: %@", error.localizedDescription)
+            return
         }
 
         let renamed = file.renamed(to: newURL)
@@ -270,7 +306,8 @@ final class Store: ObservableObject {
 
         // Auswahl ggf. auf die neue id nachziehen.
         if selection == file.id { selection = renamed.id }
-        statusMessage = "Umbenannt → \(trimmed)"
+        revalidate()
+        statusMessage = L10n.format("Renamed to %@", trimmed)
     }
 
     // MARK: - Datei-Symbol
@@ -296,28 +333,34 @@ final class Store: ObservableObject {
     /// Behandelt einen Auswahlwechsel (Einfachklick) inkl. Nachfrage bei
     /// ungespeicherten Änderungen der bisherigen Datei.
     func selectFromSidebar(_ newID: ConfigFile.ID?) {
-        guard let newID, newID != selection,
-              let target = files.first(where: { $0.id == newID }) else { return }
+        guard let newID, let target = files.first(where: { $0.id == newID }) else { return }
+        select(target)
+    }
 
-        if hasUnsavedChanges, let current = selectedFile {
-            let alert = NSAlert()
-            alert.messageText = "Ungespeicherte Änderungen"
-            alert.informativeText = "In „\(current.displayName)“ gibt es ungespeicherte Änderungen. Trotzdem wechseln?"
-            alert.addButton(withTitle: "Speichern & wechseln")
-            alert.addButton(withTitle: "Verwerfen & wechseln")
-            alert.addButton(withTitle: "Abbrechen")
-            switch alert.runModal() {
-            case .alertFirstButtonReturn:
-                save()
-                select(target)
-            case .alertSecondButtonReturn:
-                select(target)
-            default:
-                // Abbrechen: Auswahl auf die aktuelle Datei zurücksetzen
-                objectWillChange.send()
-            }
+    /// Shared by navigation, reload and the application close/quit lifecycle.
+    func confirmPendingChanges() -> Bool {
+        guard hasUnsavedChanges else { return true }
+        guard let current = selectedFile else { return false }
+        let decision: PendingChangesDecision
+        if let pendingChangesDecision {
+            decision = pendingChangesDecision(current)
         } else {
-            select(target)
+            let alert = NSAlert()
+            alert.messageText = L10n.text("Unsaved changes")
+            alert.informativeText = L10n.format("Save your changes to %@ before continuing?", current.displayName)
+            alert.addButton(withTitle: L10n.text("Save"))
+            alert.addButton(withTitle: L10n.text("Discard"))
+            alert.addButton(withTitle: L10n.text("Cancel"))
+            switch alert.runModal() {
+            case .alertFirstButtonReturn: decision = .save
+            case .alertSecondButtonReturn: decision = .discard
+            default: decision = .cancel
+            }
+        }
+        switch decision {
+        case .save: return save()
+        case .discard: return true
+        case .cancel: return false
         }
     }
 
@@ -332,118 +375,106 @@ final class Store: ObservableObject {
     // MARK: - Laden
 
     func select(_ file: ConfigFile) {
-        guard file.id != selection else { return }
+        guard file.id != selection, confirmPendingChanges() else { return }
+        activate(file)
+    }
+
+    private func activate(_ file: ConfigFile) {
         selection = file.id
         load(file)
     }
 
-    func load(_ file: ConfigFile) {
+    private func load(_ file: ConfigFile) {
         lastError = nil
-        if file.exists {
-            do {
-                let content = try String(contentsOf: file.url, encoding: .utf8)
-                text = content
-                originalText = content
-                statusMessage = "Geladen · \(modifiedString(file))"
-            } catch {
-                text = ""
-                originalText = ""
-                lastError = "Konnte nicht lesen: \(error.localizedDescription)"
+        diskBaseline = nil
+        do {
+            let baseline = try FileDocument.read(file.url)
+            let content: String
+            if let data = baseline.data {
+                guard let decoded = String(data: data, encoding: .utf8) else {
+                    throw CocoaError(.fileReadInapplicableStringEncoding)
+                }
+                content = decoded
+                statusMessage = L10n.format("Loaded · %@", modifiedString(file))
+            } else {
+                content = ""
+                statusMessage = L10n.text("This file does not exist yet. Saving will create it.")
             }
-        } else {
+            diskBaseline = baseline
+            text = content
+            originalText = content
+        } catch {
             text = ""
             originalText = ""
-            statusMessage = "Datei existiert noch nicht – Speichern legt sie an."
+            lastError = L10n.format("Could not read: %@", error.localizedDescription)
         }
         revalidate()
     }
 
     func reload() {
-        guard let file = selectedFile else { return }
+        guard let file = selectedFile, confirmPendingChanges() else { return }
         load(file)
     }
 
-    // MARK: - Speichern
+    // MARK: - Saving
 
-    func save() {
-        guard let file = selectedFile else { return }
+    @discardableResult
+    func save() -> Bool {
+        guard let file = selectedFile else { return false }
         lastError = nil
-
-        // JSON vor dem Speichern prüfen, aber nicht hart blockieren.
         revalidate()
-
         do {
-            let dir = file.url.deletingLastPathComponent()
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-
-            if autoBackup && file.exists {
-                try makeBackup(of: file)
-            }
-
-            try text.write(to: file.url, atomically: true, encoding: .utf8)
+            guard let diskBaseline else { throw FileDocument.AccessError.unreadable }
+            self.diskBaseline = try diskBaseline.write(text, at: file.url, backup: autoBackup)
             originalText = text
+            statusMessage = L10n.format("Saved ✓ · %@", timestamp())
             objectWillChange.send()
-            statusMessage = "Gespeichert ✓ · \(timestamp())"
+            return true
         } catch {
-            lastError = "Speichern fehlgeschlagen: \(error.localizedDescription)"
+            lastError = L10n.format("Could not save: %@", error.localizedDescription)
+            return false
         }
     }
 
-    private func makeBackup(of file: ConfigFile) throws {
-        let stamp = backupStamp()
-        let backupURL = file.url.deletingPathExtension()
-            .appendingPathExtension("\(file.url.pathExtension).\(stamp).bak")
-        try? FileManager.default.removeItem(at: backupURL)
-        try FileManager.default.copyItem(at: file.url, to: backupURL)
-    }
-
-    // MARK: - JSON-Werkzeuge
+    // MARK: - JSON tools
 
     func revalidate() {
         guard let file = selectedFile, file.language.isJSONLike else {
             validation = .notApplicable
             return
         }
-        let stripped = stripJSONComments(text)
-        if stripped.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            validation = .valid
-            return
-        }
-        guard let data = stripped.data(using: .utf8) else {
-            validation = .invalid("Ungültige Textkodierung")
-            return
-        }
         do {
-            _ = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+            _ = try JSONDocument.parse(text, allowsComments: file.language == .jsonc)
             validation = .valid
         } catch {
             validation = .invalid(jsonErrorMessage(error))
         }
     }
 
-    /// Formatiert JSON hübsch (für reines JSON; JSONC verliert dabei Kommentare,
-    /// daher dort nur mit Hinweis erlaubt).
     func formatJSON() {
         guard let file = selectedFile, file.language.isJSONLike else { return }
-        let source = file.language == .jsonc ? stripJSONComments(text) : text
-        guard let data = source.data(using: .utf8) else {
-            lastError = "Formatieren fehlgeschlagen: ungültige Kodierung"
-            return
-        }
         do {
-            let obj = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
-            let pretty = try JSONSerialization.data(
-                withJSONObject: obj,
-                options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
-            if let s = String(data: pretty, encoding: .utf8) {
-                text = s
-                statusMessage = file.language == .jsonc
-                    ? "Formatiert (Kommentare entfernt)"
-                    : "Formatiert ✓"
-                revalidate()
+            let parsed = try JSONDocument.parse(text, allowsComments: file.language == .jsonc)
+            let formatted = try JSONDocument.formatted(parsed.object)
+            if parsed.hasComments {
+                let approved: Bool
+                if let confirmCommentRemoval {
+                    approved = confirmCommentRemoval()
+                } else {
+                    let alert = NSAlert()
+                    alert.messageText = L10n.text("Remove comments while formatting?")
+                    alert.informativeText = L10n.text("Formatting JSONC removes all comments. The file will only change on disk when you save.")
+                    alert.addButton(withTitle: L10n.text("Format and remove comments"))
+                    alert.addButton(withTitle: L10n.text("Cancel"))
+                    approved = alert.runModal() == .alertFirstButtonReturn
+                }
+                guard approved else { return }
             }
+            text = formatted
+            lastError = nil
+            statusMessage = parsed.hasComments ? L10n.text("Formatted (comments removed)") : L10n.text("Formatted ✓")
         } catch {
-            lastError = "Formatieren fehlgeschlagen: \(jsonErrorMessage(error))"
+            lastError = L10n.format("Could not format: %@", jsonErrorMessage(error))
         }
     }
 
@@ -457,60 +488,6 @@ final class Store: ObservableObject {
     }
 
     // MARK: - Hilfsfunktionen
-
-    private func stripJSONComments(_ s: String) -> String {
-        // Entfernt // und /* */ Kommentare, respektiert Strings.
-        var result = ""
-        result.reserveCapacity(s.count)
-        var inString = false
-        var escaped = false
-        var i = s.startIndex
-        while i < s.endIndex {
-            let c = s[i]
-            let next = s.index(after: i)
-            if inString {
-                result.append(c)
-                if escaped { escaped = false }
-                else if c == "\\" { escaped = true }
-                else if c == "\"" { inString = false }
-                i = next
-                continue
-            }
-            if c == "\"" {
-                inString = true
-                result.append(c)
-                i = next
-                continue
-            }
-            if c == "/", next < s.endIndex, s[next] == "/" {
-                // bis Zeilenende überspringen
-                while i < s.endIndex && s[i] != "\n" { i = s.index(after: i) }
-                continue
-            }
-            if c == "/", next < s.endIndex, s[next] == "*" {
-                i = s.index(i, offsetBy: 2)
-                while i < s.endIndex {
-                    if s[i] == "*", s.index(after: i) < s.endIndex,
-                       s[s.index(after: i)] == "/" {
-                        i = s.index(i, offsetBy: 2)
-                        break
-                    }
-                    i = s.index(after: i)
-                }
-                continue
-            }
-            result.append(c)
-            i = next
-        }
-        // Trailing-Kommas entfernen (häufig in JSONC), damit JSONSerialization nicht meckert.
-        return removeTrailingCommas(result)
-    }
-
-    private func removeTrailingCommas(_ s: String) -> String {
-        guard let re = try? NSRegularExpression(pattern: ",\\s*([}\\]])") else { return s }
-        let range = NSRange(s.startIndex..., in: s)
-        return re.stringByReplacingMatches(in: s, range: range, withTemplate: "$1")
-    }
 
     private func jsonErrorMessage(_ error: Error) -> String {
         let ns = error as NSError
@@ -526,17 +503,11 @@ final class Store: ObservableObject {
         return f.string(from: Date())
     }
 
-    private func backupStamp() -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyyMMdd-HHmmss"
-        return f.string(from: Date())
-    }
-
     func modifiedString(_ file: ConfigFile) -> String {
         guard let attrs = try? FileManager.default.attributesOfItem(atPath: file.url.path),
               let date = attrs[.modificationDate] as? Date else { return "" }
         let f = DateFormatter()
         f.dateFormat = "dd.MM.yyyy HH:mm"
-        return "geändert " + f.string(from: date)
+        return L10n.format("modified %@", f.string(from: date))
     }
 }
