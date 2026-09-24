@@ -28,14 +28,13 @@ An ad-hoc signature is intended for local development. Distribution uses Develop
 A Developer ID Application certificate with its private key and an existing `notarytool` keychain profile are required. Set up a profile interactively with `xcrun notarytool store-credentials PROFILE_NAME`. Keep credentials out of the repository.
 
 ```bash
-VERSION=1.0.0 BUILD_NUMBER=1 \
-CODE_SIGN_IDENTITY='Developer ID Application: NAME (TEAMID)' \
-NOTARY_PROFILE='PROFILE_NAME' \
-RELEASE_REPOSITORY='RobinBially/DotShelf' \
-./scripts/release.sh .build/releases
+VERSION=1.0.0 ./scripts/release.sh              # build the notarized artifacts
+VERSION=1.0.0 ./scripts/release.sh --publish    # also publish release and cask
 ```
 
-This explicit command builds Universal (`arm64 x86_64`) by default and submits the app to Apple. `NOTARY_KEYCHAIN` selects an optional keychain for the profile. Local callers can override `ARCHS`; the GitHub release workflow always builds Universal.
+`BUILD_NUMBER` defaults to the commit count, `CODE_SIGN_IDENTITY` to the first Developer ID identity in the keychain, `NOTARY_PROFILE` to `localfoundry-notary` and `RELEASE_REPOSITORY` to `RobinBially/DotShelf`; set them explicitly on another machine or for another team. `--dry-run` checks the prerequisites without building, `--force` tolerates a dirty working tree and `--draft` creates the GitHub release as a draft.
+
+This explicit command builds Universal (`arm64 x86_64`) by default and submits the app to Apple. `NOTARY_KEYCHAIN` selects an optional keychain for the profile. Local callers can override `ARCHS`.
 
 Only after Apple returns `Accepted`, stapling succeeds, and signature and Gatekeeper checks pass does the script produce:
 
@@ -45,17 +44,19 @@ Only after Apple returns `Accepted`, stapling succeeds, and signature and Gateke
 
 Existing ZIP and checksum files are never overwritten. The local cask represents the latest generated release and is replaced when another version is generated. `RELEASE_REPOSITORY` must identify the repository that will host the release; it is explicit to avoid guessing a URL after a repository rename. The source repository is `RobinBially/DotShelf`, on the developer’s personal profile.
 
-The script creates local artifacts only. It does not publish a GitHub release or update a Homebrew tap. The cask generator does not independently notarize or attest an arbitrary archive; `release.sh` invokes it only after the verification above.
+Without `--publish` the script writes those artifacts and stops. With `--publish` it creates the GitHub release for the tagged commit and copies `Casks/dotshelf.rb` into `localfoundry/homebrew-tap` — cloned temporarily when `TAP_DIR` is not a checkout — refusing a downgrade or a same-version cask with different bytes, then runs `brew audit --cask --strict --online`. `SKIP_AUDIT=1` skips that audit. The cask generator does not independently notarize or attest an arbitrary archive; `release.sh` invokes it only after the verification above.
 
 ## Publishing a release
 
-Releases run locally. The shared driver calls this repository's `scripts/release.sh`, publishes the GitHub release and bumps the Homebrew tap:
+Releases run locally and from this checkout alone:
 
 ```bash
-~/.agents/skills/macos-sign-release/scripts/release.sh --project dotshelf --version x.y.z
+VERSION=1.0.1 ./scripts/release.sh --publish
 ```
 
-Add `--dry-run` to check the prerequisites without building anything. The driver requires a clean working tree; `scripts/release.sh` runs the localization check and `swift test` before it builds. Signing uses the Developer ID identity from the local keychain; notarization uses the notarytool keychain profile `localfoundry-notary`. Identity, team ID and profile name are read from `~/.config/macos-sign-release/config.json`. Missing credentials, a failed test, or an existing version tag stop the release before anything is published. No signing secret lives in GitHub.
+The shared driver `~/.agents/skills/macos-sign-release/scripts/release.sh --project dotshelf --version x.y.z` is a convenience wrapper: it checks the prerequisites, resolves the signing identity, team ID and notary profile from `~/.config/macos-sign-release/config.json`, and then calls this same script with `--publish`.
+
+Add `--dry-run` to check the prerequisites without building anything. The script requires a clean working tree (unless `--force`), a free version tag locally and remotely, and a usable notary profile; it runs the localization check and `swift test` before it builds. Missing credentials, a failed test or an existing version tag stop the release before anything is published. No signing secret lives in GitHub.
 
 For manual verification, download the published ZIP, check its checksum and launch the app on Apple Silicon and Intel. A successful local build alone does not prove that the notarization ticket is stapled or that the Intel slice runs.
 
