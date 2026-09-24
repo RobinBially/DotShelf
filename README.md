@@ -12,7 +12,6 @@ Keep them in one sidebar. Make an edit. Get back to work.
 [![macOS](https://img.shields.io/badge/macOS-14%2B-292A36?style=flat-square&logo=apple&logoColor=white)](#get-started)
 [![Swift](https://img.shields.io/badge/SwiftUI_%2B_AppKit-native-7865E9?style=flat-square&logo=swift&logoColor=white)](#why-dotshelf)
 [![Release](https://img.shields.io/github/v/release/RobinBially/DotShelf?style=flat-square&color=7865E9)](https://github.com/RobinBially/DotShelf/releases/latest)
-[![CI](https://github.com/RobinBially/DotShelf/actions/workflows/ci.yml/badge.svg)](https://github.com/RobinBially/DotShelf/actions/workflows/ci.yml)
 
 **[Get started](#get-started)** · **[Features](#a-little-editor-with-the-right-details)** · **[Roadmap](docs/ROADMAP.md)** · **[Feedback](https://github.com/RobinBially/DotShelf/issues)**
 
@@ -123,9 +122,8 @@ swift test
 python3 scripts/check-localization.py
 ```
 
-Tests require full Xcode. GitHub Actions runs the tests and builds an app artifact.
-A separate manual workflow prepares a signed, notarized **draft release** once
-Apple credentials are configured.
+Tests require full Xcode. Releases are built, tested, notarized and published
+locally with the shared release driver; see the [build & release guide](docs/RELEASING.md).
 
 [Contributor guide](docs/CONTRIBUTING.md) · [Build & release guide](docs/RELEASING.md) · [Release review](docs/REVIEW.md)
 

@@ -1,6 +1,6 @@
 # Building and releasing DotShelf
 
-Requires macOS with Xcode 26.3 and its command-line tools selected. DotShelf runs on macOS 14 and later; the macOS 26 SDK is needed to compile the conditional toolbar APIs. GitHub Actions uses `macos-15` and Xcode 26.3. Actions are pinned to commit SHAs.
+Requires macOS with Xcode 26.3 and its command-line tools selected. DotShelf runs on macOS 14 and later; the macOS 26 SDK is needed to compile the conditional toolbar APIs. Releases are built and published locally; no CI job signs, notarizes or uploads anything.
 
 ## Local builds
 
@@ -47,25 +47,18 @@ Existing ZIP and checksum files are never overwritten. The local cask represents
 
 The script creates local artifacts only. It does not publish a GitHub release or update a Homebrew tap. The cask generator does not independently notarize or attest an arbitrary archive; `release.sh` invokes it only after the verification above.
 
-## GitHub Actions and signing secrets
+## Publishing a release
 
-`ci.yml` runs `swift test`, builds and verifies a native ad-hoc app bundle, and uploads a ZIP as a workflow artifact.
+Releases run locally. The shared driver calls this repository's `scripts/release.sh`, publishes the GitHub release and bumps the Homebrew tap:
 
-`release.yml` runs only through `workflow_dispatch`, with a version in `x.y.z` format. It runs tests before importing signing material. The secret names follow the existing Locomni workflow:
+```bash
+~/.agents/skills/macos-sign-release/scripts/release.sh --project dotshelf --version x.y.z
+```
 
-| Secret | Content |
-| --- | --- |
-| `CSC_LINK` | Base64-encoded PKCS#12 export of the Developer ID Application certificate and private key; this workflow expects the base64 form, not a URL |
-| `CSC_KEY_PASSWORD` | Nonempty password for the PKCS#12 export |
-| `APPLE_ID` | Apple ID used for notarization |
-| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password for that Apple ID |
-| `APPLE_TEAM_ID` | Apple Developer team ID |
+Add `--dry-run` to check the prerequisites without building anything. The driver runs the localization check and `swift test` first and requires a clean working tree. Signing uses the Developer ID identity from the local keychain; notarization uses the notarytool keychain profile `localfoundry-notary`. Identity, team ID and profile name are read from `~/.config/macos-sign-release/config.json`. Missing credentials, a failed test, or an existing version tag stop the release before anything is published. No signing secret lives in GitHub.
 
-Configure these secrets separately for this repository or grant it access through organization secrets. No credentials are copied from Locomni by the build scripts. The workflow selects the single valid Developer ID Application identity imported for `APPLE_TEAM_ID`; no separate identity-name secret is needed. Missing secrets, ambiguous identities, an existing version tag, or a failed tag lookup stop the release. The certificate and notary profile live in a temporary keychain that is removed in an unconditional cleanup step.
+For manual verification, download the published ZIP, check its checksum and launch the app on Apple Silicon and Intel. A successful local build alone does not prove that the notarization ticket is stapled or that the Intel slice runs.
 
-The workflow builds both architectures, notarizes and verifies the app, then creates a **GitHub draft release** for the selected commit with the ZIP, checksum, and `dotshelf.rb` as assets. The build number is `github.run_number`, and the tag is `vVERSION`. Existing releases are not overwritten. Creating a draft does not make it available through the cask's public download URL.
-
-Before publishing, download the draft artifact, check the checksum and app launch on Apple Silicon and Intel, and review the generated cask. A successful local build does not establish that remote signing, notarization, or Intel execution has passed.
 
 ## Homebrew installation
 
