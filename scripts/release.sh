@@ -24,6 +24,24 @@ ZIP_NAME="DotShelf-$VERSION.zip"
 [[ ! -e "$OUTPUT/$ZIP_NAME" && ! -e "$OUTPUT/$ZIP_NAME.sha256" ]] || {
     echo "Release artifact already exists: $OUTPUT/$ZIP_NAME" >&2; exit 1;
 }
+
+# --- Checks ------------------------------------------------------------------
+# XCTest und das SwiftUI-Macro-Plugin kommen nur mit dem vollen Xcode; die
+# Command Line Tools allein reichen nicht (siehe docs/RELEASING.md).
+if [[ -z "${DEVELOPER_DIR:-}" && "$(xcode-select -p)" == /Library/Developer/CommandLineTools ]]; then
+    for candidate in /Applications/Xcode.app /Applications/Xcode-beta.app; do
+        if [[ -d "$candidate/Contents/Developer" ]]; then
+            export DEVELOPER_DIR="$candidate/Contents/Developer"
+            echo "   Toolchain $DEVELOPER_DIR"
+            break
+        fi
+    done
+fi
+
+echo "== Checks"
+python3 scripts/check-localization.py
+swift test
+
 WORK="$(mktemp -d "$OUTPUT/.release.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 trap 'exit 130' INT

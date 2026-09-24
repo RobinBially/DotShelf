@@ -1,6 +1,6 @@
 # Building and releasing DotShelf
 
-Requires macOS with Xcode 26.3 and its command-line tools selected. DotShelf runs on macOS 14 and later; the macOS 26 SDK is needed to compile the conditional toolbar APIs. Releases are built and published locally; no CI job signs, notarizes or uploads anything.
+Requires macOS with Xcode 26.3 and its command-line tools selected. DotShelf runs on macOS 14 and later; the macOS 26 SDK is needed to compile the conditional toolbar APIs. Releases are built and published locally; no CI job signs, notarizes or uploads anything. When `xcode-select` points at the standalone Command Line Tools, `scripts/release.sh` switches `DEVELOPER_DIR` to an installed Xcode, because only the full toolchain provides XCTest for `swift test`.
 
 ## Local builds
 
@@ -55,7 +55,7 @@ Releases run locally. The shared driver calls this repository's `scripts/release
 ~/.agents/skills/macos-sign-release/scripts/release.sh --project dotshelf --version x.y.z
 ```
 
-Add `--dry-run` to check the prerequisites without building anything. The driver runs the localization check and `swift test` first and requires a clean working tree. Signing uses the Developer ID identity from the local keychain; notarization uses the notarytool keychain profile `localfoundry-notary`. Identity, team ID and profile name are read from `~/.config/macos-sign-release/config.json`. Missing credentials, a failed test, or an existing version tag stop the release before anything is published. No signing secret lives in GitHub.
+Add `--dry-run` to check the prerequisites without building anything. The driver requires a clean working tree; `scripts/release.sh` runs the localization check and `swift test` before it builds. Signing uses the Developer ID identity from the local keychain; notarization uses the notarytool keychain profile `localfoundry-notary`. Identity, team ID and profile name are read from `~/.config/macos-sign-release/config.json`. Missing credentials, a failed test, or an existing version tag stop the release before anything is published. No signing secret lives in GitHub.
 
 For manual verification, download the published ZIP, check its checksum and launch the app on Apple Silicon and Intel. A successful local build alone does not prove that the notarization ticket is stapled or that the Intel slice runs.
 
