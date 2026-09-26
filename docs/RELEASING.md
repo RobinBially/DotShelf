@@ -32,7 +32,7 @@ VERSION=1.0.0 ./scripts/release.sh              # build the notarized artifacts
 VERSION=1.0.0 ./scripts/release.sh --publish    # also publish release and cask
 ```
 
-`BUILD_NUMBER` defaults to the commit count, `CODE_SIGN_IDENTITY` to the first Developer ID identity in the keychain, `NOTARY_PROFILE` to `localfoundry-notary` and `RELEASE_REPOSITORY` to `RobinBially/DotShelf`; set them explicitly on another machine or for another team. `--dry-run` checks the prerequisites without building, `--force` tolerates a dirty working tree and `--draft` creates the GitHub release as a draft.
+`BUILD_NUMBER` defaults to the commit count, `CODE_SIGN_IDENTITY` to the first Developer ID identity in the keychain, `NOTARY_PROFILE` to `localfoundry-notary` and `RELEASE_REPOSITORY` to `localfoundry/DotShelf`; set them explicitly on another machine or for another team. `--dry-run` checks the prerequisites without building, `--force` tolerates a dirty working tree and `--draft` creates the GitHub release as a draft.
 
 This explicit command builds Universal (`arm64 x86_64`) by default and submits the app to Apple. `NOTARY_KEYCHAIN` selects an optional keychain for the profile. Local callers can override `ARCHS`.
 
@@ -42,7 +42,7 @@ Only after Apple returns `Accepted`, stapling succeeds, and signature and Gateke
 - `DotShelf-VERSION.zip.sha256`, calculated from that final archive.
 - `Casks/dotshelf.rb`, containing that version, its real archive SHA-256, and the matching GitHub release URL.
 
-Existing ZIP and checksum files are never overwritten. The local cask represents the latest generated release and is replaced when another version is generated. `RELEASE_REPOSITORY` must identify the repository that will host the release; it is explicit to avoid guessing a URL after a repository rename. The source repository is `RobinBially/DotShelf`, on the developer’s personal profile.
+Existing ZIP and checksum files are never overwritten. The local cask represents the latest generated release and is replaced when another version is generated. `RELEASE_REPOSITORY` must identify the repository that will host the release; it is explicit to avoid guessing a URL after a repository rename. The source repository is `localfoundry/DotShelf`.
 
 Without `--publish` the script writes those artifacts and stops. With `--publish` it creates the GitHub release for the tagged commit and copies `Casks/dotshelf.rb` into `localfoundry/homebrew-tap` — cloned temporarily when `TAP_DIR` is not a checkout — refusing a downgrade or a same-version cask with different bytes, then runs `brew audit --cask --strict --online`. `SKIP_AUDIT=1` skips that audit. The cask generator does not independently notarize or attest an arbitrary archive; `release.sh` invokes it only after the verification above.
 

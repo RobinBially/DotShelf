@@ -29,7 +29,7 @@ personal profile; LocalFoundry provides distribution.
 - English is the development and default UI language. Strings are stored in language resources.
 - Distribution: a signed, notarized Universal macOS app and a Homebrew cask in the LocalFoundry tap.
 - Preserve the existing bundle ID during the rename so user preferences survive.
-- The source repository is `RobinBially/DotShelf`, on the developer’s personal profile.
+- The source repository is `localfoundry/DotShelf`.
   LocalFoundry is the distribution brand; its Homebrew tap will host the cask.
 
 The initial name search was not a trademark or domain clearance.

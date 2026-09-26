@@ -15,7 +15,7 @@
 #   BUILD_NUMBER        default: commit count of this checkout
 #   CODE_SIGN_IDENTITY  default: first Developer ID identity in the keychain
 #   NOTARY_PROFILE      default: localfoundry-notary
-#   RELEASE_REPOSITORY  default RobinBially/DotShelf
+#   RELEASE_REPOSITORY  default localfoundry/DotShelf
 #   TAP_REPOSITORY      default localfoundry/homebrew-tap
 #   TAP_DIR             existing tap checkout; otherwise cloned temporarily
 #   SKIP_AUDIT=1        skip the online brew audit after the tap push
@@ -34,7 +34,7 @@ done
 
 # Only this explicit command submits an app to Apple for notarization.
 VERSION="${VERSION:?VERSION must be set (x.y.z)}"
-RELEASE_REPOSITORY="${RELEASE_REPOSITORY:-RobinBially/DotShelf}"
+RELEASE_REPOSITORY="${RELEASE_REPOSITORY:-localfoundry/DotShelf}"
 TAP_REPOSITORY="${TAP_REPOSITORY:-localfoundry/homebrew-tap}"
 TAP_FORMULA="dotshelf"
 ARCHIVE="DotShelf-$VERSION.zip"
