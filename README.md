@@ -21,7 +21,7 @@ Built by [Robin Bially](https://github.com/robin-bially).
 
 <br />
 
-[![DotShelf’s native Mac interface: a sidebar of Claude Code, OpenCode and Zsh settings beside a syntax-highlighted JSONC editor with live validation and backups enabled.](docs/images/showcase.png)](docs/images/screenshot.png)
+[![DotShelf’s native Mac interface: a sidebar of configuration files beside a syntax-highlighted JSON editor with live validation, and a Terminal section holding a finished script run.](docs/images/showcase.png)](docs/images/screenshot.png)
 
 <p align="center"><sub>The actual DotShelf interface, in English, with example configuration files. Click for the full-size screenshot.</sub></p>
 
@@ -33,6 +33,8 @@ in another. You know the change you want to make; finding the file is the tediou
 DotShelf gives those files a permanent home in a sidebar. Open your Claude Code
 settings, tweak an OpenCode config or update `.zshrc` in a focused native editor.
 Add any other file you return to often, and give it an icon and color of its own.
+When a project comes with a script – a `docker compose` stack, a setup script –
+DotShelf runs it right there and shows the output where you edit.
 
 **Everything stays on your Mac.** No account, network calls or telemetry.
 Built with SwiftUI and AppKit, with no third-party runtime dependencies.
@@ -44,12 +46,29 @@ Built with SwiftUI and AppKit, with no third-party runtime dependencies.
 | **A shelf for your configs** | Built-in entries for Claude Code, OpenCode and Zsh. Add your own files, including hidden ones, and collapse the sidebar into an icon rail. |
 | **Comfortable editing** | Syntax highlighting for JSON, JSONC, YAML and shell, plus line numbers, search and adjustable text size. |
 | **Instant JSON feedback** | Live syntax validation for JSON and JSONC. Format JSON in a click; formatting JSONC asks before removing comments. |
+| **Run scripts where you edit them** | Start a shell script or a `docker compose` stack with **⌃R** or the green play button – it runs right away, options only when you ask for them (**⌥⌃R**). A temporary terminal entry appears in the sidebar and its output opens in the editor, with input, stop, rerun and clear. |
 | **Control over your edits** | Save explicitly with **⌘S**. Save, discard or cancel when leaving unsaved changes. Failed saves keep your buffer intact. |
 | **Careful file handling** | Preserve symlinks and existing permissions. Detect external changes before saving. Create new files with owner-only permissions. |
 | **Backups by default** | Each save of an existing file creates a separate backup beside its target. |
 
 English is the default interface language. See the [usage guide](docs/USAGE.md)
 for keyboard shortcuts, default file locations and current limitations.
+
+## Run scripts where you edit them
+
+[![DotShelf running a shell script: the sidebar lists the temporary “hello.sh” terminal entry, and the editor shows the script’s output with a green Finished status.](docs/images/terminal.png)](docs/images/terminal.png)
+
+Select a shell script or a `docker compose` file and press **⌃R** – or click the
+green play button. The command starts right away; a temporary entry appears in
+the sidebar's **Terminal** section and its output opens in the editor. Scripts and
+compose files carry their own icon, so you can tell at a glance what runs where.
+
+The terminal is a real one: type into a running process, press **⌃C** to stop it,
+**⌘V** to paste. A shell that waits at its prompt reads **Ready** – the spinner
+only shows while something actually works. DotShelf asks before closing only when
+a process is still running, and a finished script can hand over to a free login
+shell in the same folder. Options (command, working directory, name) are there
+when you want them: **⌥⌃R** or the menu next to the play button.
 
 ## Get started
 
@@ -115,7 +134,8 @@ Bug reports and focused pull requests are welcome.
 
 SwiftUI provides the app and sidebar; AppKit powers the text editor. English
 strings live in localization resources. Regression tests cover JSON parsing,
-file safety, unsaved changes, lifecycle handling and localization.
+file safety, unsaved changes, lifecycle handling, localization and the script
+runner (real PTY, input, stopping).
 
 ```sh
 swift test
