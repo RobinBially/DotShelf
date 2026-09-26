@@ -192,7 +192,17 @@ release_args=("v$VERSION" "$OUTPUT/$ARCHIVE" "$OUTPUT/$ARCHIVE.sha256" "$OUTPUT/
 if [[ $draft -eq 1 ]]; then
     release_args+=(--draft)
 fi
-gh release create "${release_args[@]}"
+# GitHub erzeugt die Notizen serverseitig; der Aufruf kann mit HTTP 500
+# scheitern, ohne dass ein Release entsteht. Dann mit lokaler Notiz erneut.
+if ! gh release create "${release_args[@]}"; then
+    echo "   Notizen-Erzeugung fehlgeschlagen; erneut mit lokaler Notiz." >&2
+    fallback_args=()
+    for arg in "${release_args[@]}"; do
+        if [[ "$arg" == "--generate-notes" ]]; then continue; fi
+        fallback_args+=("$arg")
+    done
+    gh release create "${fallback_args[@]}" --notes "Release $VERSION"
+fi
 
 echo "== Homebrew-Tap"
 if [[ -n "${TAP_DIR:-}" && -d "${TAP_DIR}/.git" ]]; then
