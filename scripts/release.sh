@@ -14,7 +14,8 @@
 #   VERSION             required, x.y.z
 #   BUILD_NUMBER        default: commit count of this checkout
 #   CODE_SIGN_IDENTITY  default: first Developer ID identity in the keychain
-#   NOTARY_PROFILE      default: robin-bially-notary
+#   NOTARY_PROFILE      default: notarization.keychain_profile from
+#                       ~/.config/macos-sign-release/config.json
 #   RELEASE_REPOSITORY  default robin-bially/DotShelf
 #   TAP_REPOSITORY      default robin-bially/homebrew-tap
 #   TAP_DIR             existing tap checkout; otherwise cloned temporarily
@@ -60,7 +61,9 @@ mkdir -p "$OUTPUT"
 OUTPUT="$(cd "$OUTPUT" && pwd)"
 
 BUILD_NUMBER="${BUILD_NUMBER:-$(git rev-list --count HEAD)}"
-NOTARY_PROFILE="${NOTARY_PROFILE:-robin-bially-notary}"
+SIGN_CONFIG="${SIGN_CONFIG:-$HOME/.config/macos-sign-release/config.json}"
+NOTARY_PROFILE="${NOTARY_PROFILE:-$(plutil -extract notarization.keychain_profile raw -o - "$SIGN_CONFIG" 2>/dev/null || true)}"
+NOTARY_PROFILE="${NOTARY_PROFILE:-localfoundry-notary}"
 [[ "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]] || { echo "BUILD_NUMBER must be a positive integer, got: $BUILD_NUMBER" >&2; exit 1; }
 if [[ -z "${CODE_SIGN_IDENTITY:-}" ]]; then
     CODE_SIGN_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
