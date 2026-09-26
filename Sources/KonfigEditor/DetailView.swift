@@ -4,7 +4,9 @@ struct DetailView: View {
     @EnvironmentObject var store: Store
 
     var body: some View {
-        if let file = store.selectedFile {
+        if let session = store.selectedTerminal {
+            TerminalDetailView(session: session)
+        } else if let file = store.selectedFile {
             VStack(spacing: 0) {
                 CodeEditor(text: $store.text, language: file.language, fontSize: store.fontSize)
                     .id(file.id)
@@ -15,16 +17,24 @@ struct DetailView: View {
             .navigationSubtitle(file.prettyPath)
             .toolbar { toolbarContent(file) }
         } else {
-            ContentUnavailableView(
-                L10n.text("No file selected"),
-                systemImage: "doc.text",
-                description: Text(L10n.text("Choose a configuration file in the sidebar.")))
+            ContentUnavailableView {
+                Label(L10n.text("No file selected"), systemImage: "doc.text")
+            } description: {
+                Text(L10n.text("Choose a configuration file in the sidebar."))
+            } actions: {
+                // Ein Terminal braucht keine Datei: immer erreichbar.
+                Button {
+                    store.openTerminal()
+                } label: {
+                    Label(L10n.text("Open Terminal"), systemImage: "terminal.fill")
+                }
+            }
         }
     }
 
     private func languageBadge(_ lang: ConfigLanguage) -> some View {
         Text(lang.displayName)
-            .font(.caption2.weight(.medium))
+            .font(.system(size: 12, weight: .medium))
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(lang.accent.opacity(0.15), in: Capsule())
@@ -51,27 +61,12 @@ struct DetailView: View {
             }
             Text(lineCount == 1 ? L10n.text("1 line") : L10n.format("%d lines", lineCount))
                 .foregroundStyle(.tertiary)
-            zoomControl
+            ZoomControl()
         }
-        .font(.caption)
+        .font(.system(size: 12))
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
         .background(.ultraThinMaterial)
-    }
-
-    private var zoomControl: some View {
-        HStack(spacing: 2) {
-            Button { store.zoomOut() } label: { Image(systemName: "minus") }
-                .help(L10n.text("Zoom out (⌘−)"))
-            Text("\(Int(store.fontSize)) pt")
-                .foregroundStyle(.secondary)
-                .frame(width: 34)
-                .monospacedDigit()
-            Button { store.zoomIn() } label: { Image(systemName: "plus") }
-                .help(L10n.text("Zoom in (⌘+)"))
-        }
-        .buttonStyle(.borderless)
-        .font(.caption)
     }
 
     @ViewBuilder
@@ -111,6 +106,34 @@ struct DetailView: View {
         }
 
         ToolbarItemGroup(placement: .automatic) {
+            // Grüner Pfeil = sofort starten. Das Menü daneben ist für alles,
+            // was eingestellt werden soll – aber niemand wird dazu gezwungen.
+            Menu {
+                Button {
+                    store.presentRunSheet(for: file)
+                } label: {
+                    Label(L10n.text("Run with Options…"), systemImage: "slider.horizontal.3")
+                }
+                Button {
+                    store.presentRunSheetWithoutSuggestion()
+                } label: {
+                    Label(L10n.text("Run command…"), systemImage: "chevron.left.forwardslash.chevron.right")
+                }
+            } label: {
+                Label(L10n.text("Run"), systemImage: "play.fill")
+            } primaryAction: {
+                store.runSuggestion(for: file)
+            }
+            .help(L10n.text("Run a script (⌃R)"))
+
+            // Frei arbeiten im Ordner: eigenes Terminal, eigener Knopf.
+            Button {
+                store.openTerminal(in: file.url.deletingLastPathComponent())
+            } label: {
+                Label(L10n.text("Open Terminal"), systemImage: "terminal.fill")
+            }
+            .help(L10n.text("Open Terminal"))
+
             Button {
                 store.reload()
             } label: {

@@ -1,6 +1,19 @@
 import SwiftUI
 import AppKit
 
+/// Startgröße des Fensters – wie bei üblichen Mac-Apps: großzügig, aber nicht
+/// bildschirmfüllend, damit Sidebar und Inhalt nebeneinander atmen können.
+enum WindowGeometry {
+    static var startSize: CGSize { startSize(for: NSScreen.main) }
+
+    static func startSize(for screen: NSScreen?) -> CGSize {
+        let visible = (screen ?? NSScreen.main)?.visibleFrame.size
+            ?? CGSize(width: 1440, height: 900)
+        return CGSize(width: max(820, min(visible.width * 0.7, 1280)),
+                      height: max(520, min(visible.height * 0.78, 900)))
+    }
+}
+
 /// Sets the initial window geometry and preserves SwiftUI's window delegate
 /// while adding the unsaved-changes check for the close button and Command-W.
 struct WindowConfigurator: NSViewRepresentable {
@@ -50,12 +63,18 @@ struct WindowConfigurator: NSViewRepresentable {
                 guard !self.didConfigure,
                       let screen = window.screen ?? NSScreen.main else { return }
                 self.didConfigure = true
+                // Die zuletzt benutzte Größe bleibt stehen; macOS stellt sie
+                // selbst wieder her. Nur ein Fenster, das nicht mehr auf den
+                // Bildschirm passt (etwa nach einem Monitorwechsel), bekommt
+                // die Startgröße zurück.
                 let visible = screen.visibleFrame
-                let width = visible.width * 0.8
-                let height = visible.height * 0.8
-                let x = visible.minX + (visible.width - width) / 2
-                let y = visible.minY + (visible.height - height) / 2
-                window.setFrame(NSRect(x: x, y: y, width: width, height: height),
+                let fits = visible.width >= window.frame.width
+                    && visible.height >= window.frame.height
+                guard !fits || !visible.intersects(window.frame) else { return }
+                let size = WindowGeometry.startSize(for: screen)
+                window.setFrame(NSRect(x: visible.minX + (visible.width - size.width) / 2,
+                                       y: visible.minY + (visible.height - size.height) / 2,
+                                       width: size.width, height: size.height),
                                 display: true, animate: false)
             }
         }

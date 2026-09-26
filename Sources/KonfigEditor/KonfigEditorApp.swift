@@ -6,11 +6,6 @@ struct DotShelfApp: App {
     @StateObject private var store = Store()
     @NSApplicationDelegateAdaptor(DotShelfAppDelegate.self) private var appDelegate
 
-    private var startSize: CGSize {
-        let frame = NSScreen.main?.visibleFrame.size ?? CGSize(width: 1440, height: 900)
-        return CGSize(width: frame.width * 0.8, height: frame.height * 0.8)
-    }
-
     var body: some Scene {
         // One shared editor buffer needs exactly one document window.
         Window("DotShelf", id: "main") {
@@ -22,7 +17,11 @@ struct DotShelfApp: App {
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
-        .defaultSize(width: startSize.width, height: startSize.height)
+        // Erster Start: angenehme Größe in der Bildschirmmitte. Danach merkt
+        // sich macOS die Größe, die der Nutzer eingestellt hat.
+        .defaultSize(width: WindowGeometry.startSize.width,
+                     height: WindowGeometry.startSize.height)
+        .defaultPosition(.center)
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .saveItem) {
@@ -31,6 +30,25 @@ struct DotShelfApp: App {
                     .disabled(!store.hasUnsavedChanges)
                 Button(L10n.text("Reload")) { store.reload() }
                     .keyboardShortcut("r", modifiers: .command)
+                    .disabled(store.selectedTerminal != nil)
+            }
+            CommandGroup(after: .saveItem) {
+                Button(L10n.text("Run")) { store.runSelectedFile() }
+                    .keyboardShortcut("r", modifiers: .control)
+                Button(L10n.text("Run with Options…")) { store.presentRunSheet(for: store.selectedFile) }
+                    .keyboardShortcut("r", modifiers: [.control, .option])
+                Button(L10n.text("Open Terminal")) { store.openTerminal() }
+                    .keyboardShortcut("t", modifiers: [.command, .option])
+                Divider()
+                Button(L10n.text("Rerun")) { store.rerunSelectedSession() }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .disabled(!(store.selectedTerminal.map { !$0.isRunning } ?? false))
+                Button(L10n.text("Stop")) { store.stopSelectedSession() }
+                    .keyboardShortcut(".", modifiers: .command)
+                    .disabled(!(store.selectedTerminal?.isRunning ?? false))
+                Button(L10n.text("Clear Terminal")) { store.clearSelectedSession() }
+                    .keyboardShortcut("k", modifiers: .command)
+                    .disabled(store.selectedTerminal == nil)
             }
             CommandGroup(after: .toolbar) {
                 Button(L10n.text("Zoom In")) { store.zoomIn() }
@@ -64,7 +82,9 @@ final class DotShelfAppDelegate: NSObject, NSApplicationDelegate, ObservableObje
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        confirmExit() ? .terminateNow : .terminateCancel
+        guard confirmExit() else { return .terminateCancel }
+        store?.stopAllSessions()
+        return .terminateNow
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

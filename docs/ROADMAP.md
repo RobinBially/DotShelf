@@ -11,6 +11,11 @@ The first signed, notarized Universal app is available through GitHub Releases a
 `brew install --cask robin-bially/tap/dotshelf`. The source stays on Robin Bially's
 personal profile; the Homebrew tap lives in the same account.
 
+DotShelf also runs scripts the way an IDE does: **⌃R** starts a shell script or a
+`docker compose` stack right away, a temporary entry appears in the sidebar's
+**Terminal** section and the output opens in the editor, with input, stop, rerun
+and clear. A free terminal (**⌥⌘T**) is one keystroke away.
+
 ## Next
 
 | Feature | Why it matters |

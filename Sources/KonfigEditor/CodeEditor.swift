@@ -149,7 +149,7 @@ struct CodeEditor: NSViewRepresentable {
                 .paragraphStyle: para
             ]
 
-            ruler?.labelFontSize = max(9, fontSize - 2)
+            ruler?.labelFontSize = max(10, fontSize - 1)
             ruler?.ruleThickness = max(44, fontSize * 3.2)
             ruler?.needsDisplay = true
         }

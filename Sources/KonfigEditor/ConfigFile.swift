@@ -63,11 +63,34 @@ struct ConfigFile: Identifiable, Hashable {
             id: "custom:" + url.path,
             displayName: url.lastPathComponent,
             subtitle: L10n.text("Custom file"),
-            symbol: "doc.text",
+            symbol: symbol(for: url),
             language: detectLanguage(for: url),
             rawPath: url.path,
             isCustom: true
         )
+    }
+
+    /// Listen-Symbol nach Dateityp: Skripte und Compose-Dateien erkennt man auf
+    /// einen Blick, alles andere bekommt das neutrale Dokument-Symbol. Ein vom
+    /// Nutzer gewähltes Symbol bleibt davon unberührt (Overrides gewinnen).
+    static func symbol(for url: URL) -> String {
+        if RunConfiguration.isComposeFile(at: url) { return "shippingbox" }
+        if RunConfiguration.isScriptFile(at: url) { return "terminal" }
+        if isShellConfiguration(url) { return "terminal" }
+        switch detectLanguage(for: url) {
+        case .json, .jsonc: return "curlybraces"
+        case .yaml:         return "list.bullet.rectangle"
+        case .shell:        return "doc.text"   // unbekannte Endung: neutral
+        }
+    }
+
+    /// Shell-Konfiguration ohne Skriptcharakter (.zshrc, .env, …).
+    private static func isShellConfiguration(_ url: URL) -> Bool {
+        let name = url.lastPathComponent.lowercased()
+        let ext = url.pathExtension.lowercased()
+        if ["zshrc", "bashrc", "profile", "zprofile", "env"].contains(ext) { return true }
+        return name.hasPrefix(".")
+            && (name.contains("rc") || name.contains("profile") || name.contains("env"))
     }
 
     /// Kopie des Eintrags mit neuem Pfad (nach Umbenennen auf der Festplatte).

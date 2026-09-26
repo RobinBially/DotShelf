@@ -8,11 +8,33 @@ enum ValidationState: Equatable {
     case invalid(String)
 }
 
+/// Was der Editor gerade zeigt: eine Konfigurationsdatei oder ein Terminal.
+enum ShelfSelection: Hashable {
+    case file(ConfigFile.ID)
+    case terminal(UUID)
+
+    var fileID: ConfigFile.ID? {
+        if case .file(let id) = self { return id }
+        return nil
+    }
+
+    var terminalID: UUID? {
+        if case .terminal(let id) = self { return id }
+        return nil
+    }
+}
+
 @MainActor
 final class Store: ObservableObject {
 
     @Published var files: [ConfigFile] = ConfigFile.known
-    @Published var selection: ConfigFile.ID?
+    @Published var selection: ShelfSelection?
+
+    /// Temporäre Einträge der Seitenleiste: laufende und beendete Skript-Läufe.
+    @Published var sessions: [TerminalSession] = []
+
+    /// Offener Run-Dialog (nil = zu).
+    @Published var runDraft: RunConfiguration?
 
     /// Seitenleiste eingeklappt → nur Symbole, Dateien bleiben erreichbar.
     @Published var sidebarCollapsed: Bool = false
@@ -84,16 +106,22 @@ final class Store: ObservableObject {
     private let newFileDirectory: URL
     private let pendingChangesDecision: ((ConfigFile) -> PendingChangesDecision)?
     private let confirmCommentRemoval: (() -> Bool)?
+    private let confirmStopRunning: (() -> Bool)?
     private var diskBaseline: FileDocument?
+    /// Datei, zu der der Editor-Puffer gehört. Bleibt bestehen, während ein
+    /// Terminal angezeigt wird – so gehen ungespeicherte Änderungen nicht verloren.
+    private(set) var openFile: ConfigFile?
 
     init(initialFiles: [ConfigFile]? = nil, defaults: UserDefaults = .standard,
          newFileDirectory: URL? = nil,
          pendingChangesDecision: ((ConfigFile) -> PendingChangesDecision)? = nil,
-         confirmCommentRemoval: (() -> Bool)? = nil) {
+         confirmCommentRemoval: (() -> Bool)? = nil,
+         confirmStopRunning: (() -> Bool)? = nil) {
         self.defaults = defaults
         self.newFileDirectory = newFileDirectory ?? FileManager.default.homeDirectoryForCurrentUser
         self.pendingChangesDecision = pendingChangesDecision
         self.confirmCommentRemoval = confirmCommentRemoval
+        self.confirmStopRunning = confirmStopRunning
         _autoBackup = AppStorage(wrappedValue: true, "autoBackup", store: defaults)
         _fontSize = AppStorage(wrappedValue: 13, "editorFontSize", store: defaults)
         removedKnownIDs = defaults.stringArray(forKey: removedKnownKey) ?? []
@@ -112,7 +140,7 @@ final class Store: ObservableObject {
             .map { applyColorOverride($0) }
 
         if let first = files.first(where: { $0.exists }) ?? files.first {
-            selection = first.id
+            selection = .file(first.id)
             load(first)
         }
     }
@@ -226,7 +254,7 @@ final class Store: ObservableObject {
     /// Funktioniert für eigene wie kuratierte Einträge; bei kuratierten wird
     /// das Ausblenden dauerhaft gemerkt.
     func removeFile(_ file: ConfigFile) {
-        guard selection != file.id || confirmPendingChanges() else { return }
+        if openFile?.id == file.id, !confirmPendingChanges() { return }
         files.removeAll { $0.id == file.id }
         // Symbol-/Farb-Overrides dieses Eintrags aufräumen – einheitlich für
         // kuratierte wie eigene Einträge.
@@ -242,14 +270,19 @@ final class Store: ObservableObject {
             persistRemovedKnown()
             persistKnownOverrides()
         }
-        if selection == file.id {
+        if openFile?.id == file.id {
+            openFile = nil
+            diskBaseline = nil
+            text = ""; originalText = ""
+            validation = .notApplicable
+        }
+        if selection?.fileID == file.id {
             if let first = files.first {
                 activate(first)
+            } else if let session = sessions.first {
+                selection = .terminal(session.id)
             } else {
                 selection = nil
-                text = ""; originalText = ""
-                diskBaseline = nil
-                validation = .notApplicable
             }
         }
     }
@@ -274,12 +307,12 @@ final class Store: ObservableObject {
             return
         }
         do {
-            if selection == file.id {
+            if openFile?.id == file.id {
                 guard let diskBaseline else { throw FileDocument.AccessError.unreadable }
                 try diskBaseline.checkUnchanged(at: file.url)
             }
             try fm.moveItem(at: file.url, to: newURL)
-            if selection == file.id { diskBaseline = diskBaseline?.relocated(to: newURL) }
+            if openFile?.id == file.id { diskBaseline = diskBaseline?.relocated(to: newURL) }
         } catch {
             lastError = L10n.format("Could not rename: %@", error.localizedDescription)
             return
@@ -304,8 +337,9 @@ final class Store: ObservableObject {
             persistKnownOverrides()
         }
 
-        // Auswahl ggf. auf die neue id nachziehen.
-        if selection == file.id { selection = renamed.id }
+        // Puffer und Auswahl ggf. auf die neue id nachziehen.
+        if openFile?.id == file.id { openFile = renamed }
+        if selection?.fileID == file.id { selection = .file(renamed.id) }
         revalidate()
         statusMessage = L10n.format("Renamed to %@", trimmed)
     }
@@ -364,8 +398,16 @@ final class Store: ObservableObject {
         }
     }
 
+    /// Die im Editor angezeigte Datei (nil, solange ein Terminal ausgewählt ist).
     var selectedFile: ConfigFile? {
-        files.first { $0.id == selection }
+        guard let id = selection?.fileID else { return nil }
+        return files.first { $0.id == id }
+    }
+
+    /// Das ausgewählte Terminal (nil, solange eine Datei angezeigt wird).
+    var selectedTerminal: TerminalSession? {
+        guard let id = selection?.terminalID else { return nil }
+        return sessions.first { $0.id == id }
     }
 
     var hasUnsavedChanges: Bool {
@@ -375,16 +417,24 @@ final class Store: ObservableObject {
     // MARK: - Laden
 
     func select(_ file: ConfigFile) {
-        guard file.id != selection, confirmPendingChanges() else { return }
+        // Dieselbe Datei: der Puffer bleibt erhalten, nur die Ansicht wechselt
+        // zurück – etwa aus einem Terminal heraus.
+        if openFile?.id == file.id {
+            selection = .file(file.id)
+            revalidate()
+            return
+        }
+        guard confirmPendingChanges() else { return }
         activate(file)
     }
 
     private func activate(_ file: ConfigFile) {
-        selection = file.id
+        selection = .file(file.id)
         load(file)
     }
 
     private func load(_ file: ConfigFile) {
+        openFile = file
         lastError = nil
         diskBaseline = nil
         do {
@@ -420,7 +470,7 @@ final class Store: ObservableObject {
 
     @discardableResult
     func save() -> Bool {
-        guard let file = selectedFile else { return false }
+        guard let file = openFile else { return false }
         lastError = nil
         revalidate()
         do {
@@ -439,7 +489,7 @@ final class Store: ObservableObject {
     // MARK: - JSON tools
 
     func revalidate() {
-        guard let file = selectedFile, file.language.isJSONLike else {
+        guard let file = openFile, file.language.isJSONLike else {
             validation = .notApplicable
             return
         }
@@ -484,6 +534,160 @@ final class Store: ObservableObject {
             NSWorkspace.shared.activateFileViewerSelecting([file.url])
         } else {
             NSWorkspace.shared.activateFileViewerSelecting([file.url.deletingLastPathComponent()])
+        }
+    }
+
+    // MARK: - Skripte ausführen
+
+    /// Vorschlag für eine Datei: Shell-Skript oder Docker-Compose-Stack.
+    func suggestedRunConfiguration(for file: ConfigFile?) -> RunConfiguration {
+        guard let file else {
+            return RunConfiguration(
+                name: "",
+                command: "",
+                workingDirectory: preferredWorkingDirectory)
+        }
+        return RunConfiguration.suggestion(for: file)
+    }
+
+    /// Arbeitsverzeichnis neuer Läufe: neben der bearbeiteten Datei, sonst wie
+    /// beim letzten Lauf, sonst das Home-Verzeichnis.
+    private var preferredWorkingDirectory: URL {
+        if let open = openFile { return open.url.deletingLastPathComponent() }
+        if let last = sessions.first { return last.workingDirectory }
+        return FileManager.default.homeDirectoryForCurrentUser
+    }
+
+    /// Öffnet den Run-Dialog, vorbelegt für die angegebene Datei.
+    func presentRunSheet(for file: ConfigFile?) {
+        runDraft = suggestedRunConfiguration(for: file)
+    }
+
+    /// Öffnet den Run-Dialog für eine frei eingegebene Befehlszeile.
+    func presentRunSheetWithoutSuggestion() {
+        presentRunSheet(for: nil)
+    }
+
+    /// Führt den erkannten Befehl einer Datei sofort aus – ohne Dialog, wie der
+    /// grüne Pfeil in IntelliJ. Gibt es nichts zu erkennen (etwa eine Markdown-
+    /// Datei), öffnet sich der Dialog, weil der Befehl dann frei ist.
+    @discardableResult
+    func runSuggestion(for file: ConfigFile?) -> TerminalSession? {
+        guard let file else {
+            presentRunSheetWithoutSuggestion()
+            return nil
+        }
+        let suggestion = RunConfiguration.suggestion(for: file)
+        guard !suggestion.command.isEmpty else {
+            presentRunSheet(for: file)
+            return nil
+        }
+        return run(suggestion)
+    }
+
+    /// ⌃R: Steht ein Terminal im Vordergrund, läuft dessen Befehl erneut,
+    /// sonst startet der Vorschlag der bearbeiteten Datei.
+    @discardableResult
+    func runSelectedFile() -> TerminalSession? {
+        if let terminal = selectedTerminal {
+            terminal.rerun()
+            return terminal
+        }
+        return runSuggestion(for: selectedFile)
+    }
+
+    /// Öffnet ein freies Terminal: eine interaktive Login-Shell zum Arbeiten
+    /// im Ordner – Eingabe, Strg-C und Einfügen verhalten sich wie gewohnt.
+    @discardableResult
+    func openTerminal(in directory: URL? = nil) -> TerminalSession? {
+        let configuration = RunConfiguration(
+            name: L10n.text("Shell"),
+            command: "exec /bin/zsh -l -i",
+            workingDirectory: directory ?? preferredWorkingDirectory,
+            kind: .shell)
+        return run(configuration)
+    }
+
+    /// Legt einen temporären Terminal-Eintrag an und führt den Befehl aus.
+    @discardableResult
+    func run(_ configuration: RunConfiguration) -> TerminalSession? {
+        let command = configuration.command.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !command.isEmpty else { return nil }
+        var configuration = configuration
+        configuration.command = command
+
+        // Vor dem Start speichern, wenn genau diese Datei gerade bearbeitet wird.
+        if let id = configuration.sourceFileID, openFile?.id == id, hasUnsavedChanges {
+            guard save() else { return nil }
+        }
+
+        let session = TerminalSession(configuration: configuration)
+        sessions.insert(session, at: 0)
+        selection = .terminal(session.id)
+        session.start()
+        return session
+    }
+
+    func selectTerminal(_ session: TerminalSession) {
+        selection = .terminal(session.id)
+    }
+
+    func stopSelectedSession() {
+        selectedTerminal?.stop()
+    }
+
+    func rerunSelectedSession() {
+        selectedTerminal?.rerun()
+    }
+
+    func clearSelectedSession() {
+        selectedTerminal?.clearOutput()
+    }
+
+    /// Schließt einen Terminal-Eintrag. Arbeitet darin noch etwas, wird vorher
+    /// gefragt; ein Terminal, das nur an der Eingabeaufforderung steht, geht
+    /// ohne Rückfrage zu.
+    func closeSession(_ session: TerminalSession) {
+        if session.isBusy {
+            let approved: Bool
+            if let confirmStopRunning {
+                approved = confirmStopRunning()
+            } else {
+                let alert = NSAlert()
+                if session.kind == .shell {
+                    alert.messageText = L10n.text("Close the terminal?")
+                    alert.informativeText = L10n.text(
+                        "A command is still running in this terminal. Closing the entry ends it.")
+                    alert.addButton(withTitle: L10n.text("Close"))
+                } else {
+                    alert.messageText = L10n.text("Stop the running script?")
+                    alert.informativeText = L10n.format(
+                        "“%@” is still running. Closing the terminal stops it.", session.title)
+                    alert.addButton(withTitle: L10n.text("Stop and close"))
+                }
+                alert.addButton(withTitle: L10n.text("Cancel"))
+                approved = alert.runModal() == .alertFirstButtonReturn
+            }
+            guard approved else { return }
+        }
+        session.stop()
+        sessions.removeAll { $0.id == session.id }
+        guard selection?.terminalID == session.id else { return }
+        if let open = openFile {
+            selection = .file(open.id)
+        } else if let first = files.first {
+            activate(first)
+        } else if let next = sessions.first {
+            selection = .terminal(next.id)
+        } else {
+            selection = nil
+        }
+    }
+
+    /// Beendet alle laufenden Skripte (etwa beim Schließen der App).
+    func stopAllSessions() {
+        for session in sessions where session.isRunning {
+            session.stop()
         }
     }
 

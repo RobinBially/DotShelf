@@ -23,6 +23,7 @@ Konfig-Editor preserves file lists, icons and preferences.
 | Sidebar and editor UI | `ContentView.swift`, `DetailView.swift` |
 | Text editing and line numbers | `CodeEditor.swift`, `CodeTextView.swift`, `LineNumberRulerView.swift` |
 | Files, state and validation | `Store.swift`, `ConfigFile.swift`, `FileDocument.swift`, `JSONDocument.swift` |
+| Running scripts and terminals | `TerminalSession.swift`, `ScriptRunner.swift`, `TerminalBuffer.swift`, `TerminalView.swift`, `RunSheet.swift` |
 | Highlighting and colors | `SyntaxHighlighter.swift`, `Theme.swift` |
 | Localization | `L10n.swift`, `Resources/en.lproj/Localizable.strings` |
 
@@ -34,4 +35,3 @@ Sources live in [`Sources/KonfigEditor`](../Sources/KonfigEditor), regression te
 For screenshots, `python3 scripts/prepare-screenshot.py` builds a separate demo app
 using the real views, synthetic files and separate preferences. Capture its window
 for `docs/images/screenshot.png`; no personal configuration is needed.
-

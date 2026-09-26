@@ -19,6 +19,10 @@ struct ContentView: View {
             targetWidth: store.sidebarCollapsed ? 72 : 270))
         .background(WindowConfigurator())
         .animation(.easeInOut(duration: 0.18), value: store.sidebarCollapsed)
+        .sheet(item: $store.runDraft) { configuration in
+            RunSheet(configuration: configuration)
+                .environmentObject(store)
+        }
     }
 
     private var splitVisibility: Binding<NavigationSplitViewVisibility> {
@@ -206,10 +210,20 @@ struct SidebarView: View {
                 ForEach(store.files) { file in
                     fileButton(file)
                 }
+                ForEach(store.sessions) { session in
+                    terminalButton(session)
+                }
             } else {
                 Section(L10n.text("Configurations")) {
                     ForEach(store.files) { file in
                         fileButton(file)
+                    }
+                }
+                if !store.sessions.isEmpty {
+                    Section(L10n.text("Terminal")) {
+                        ForEach(store.sessions) { session in
+                            terminalButton(session)
+                        }
                     }
                 }
             }
@@ -291,6 +305,15 @@ struct SidebarView: View {
                 .frame(width: 430, height: 430)
         }
         .contextMenu {
+            if RunConfiguration.isScriptFile(file) || RunConfiguration.isComposeFile(file) {
+                Button { store.runSuggestion(for: file) } label: {
+                    Label(L10n.text("Run"), systemImage: "play.fill")
+                }
+                Button { store.presentRunSheet(for: file) } label: {
+                    Label(L10n.text("Run with Options…"), systemImage: "slider.horizontal.3")
+                }
+                Divider()
+            }
             Button { promptRename(file) } label: {
                 Label(L10n.text("Rename…"), systemImage: "pencil")
             }
@@ -313,15 +336,60 @@ struct SidebarView: View {
     }
 
     private func rowBackground(for file: ConfigFile) -> some View {
+        selectionBackground(isSelected: store.selection == .file(file.id))
+    }
+
+    private func rowBackground(for session: TerminalSession) -> some View {
+        selectionBackground(isSelected: store.selection == .terminal(session.id))
+    }
+
+    private func selectionBackground(isSelected: Bool) -> some View {
         RoundedRectangle(cornerRadius: 6)
-            .fill(store.selection == file.id ? Color.accentColor.opacity(0.22) : Color.clear)
+            .fill(isSelected ? Color.accentColor.opacity(0.22) : Color.clear)
             .padding(.horizontal, 4)
+    }
+
+    /// Zeile eines Skript-Laufs: Titel, Status, Stoppen/Schließen.
+    @ViewBuilder
+    private func terminalButton(_ session: TerminalSession) -> some View {
+        Button {
+            store.selectTerminal(session)
+        } label: {
+            if collapsed {
+                CollapsedTerminalRow(session: session)
+            } else {
+                TerminalRow(session: session)
+            }
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(rowBackground(for: session))
+        .help(collapsed ? session.title : "")
+        .overlay(alignment: .trailing) {
+            if !collapsed { TerminalCloseButton(session: session) }
+        }
+        .contextMenu {
+            Button { session.rerun() } label: {
+                Label(L10n.text("Rerun"), systemImage: "arrow.clockwise")
+            }
+            .disabled(session.isRunning)
+            Button { session.stop() } label: {
+                Label(L10n.text("Stop"), systemImage: "stop.fill")
+            }
+            .disabled(!session.isRunning)
+            Button { session.clearOutput() } label: {
+                Label(L10n.text("Clear output"), systemImage: "eraser")
+            }
+            Divider()
+            Button(role: .destructive) { store.closeSession(session) } label: {
+                Label(L10n.text("Close terminal"), systemImage: "xmark")
+            }
+        }
     }
 
     private var bottomBar: some View {
         Toggle(isOn: $store.autoBackup) {
             Label(L10n.text("Back up on save"), systemImage: "clock.arrow.circlepath")
-                .font(.caption)
+                .font(.system(size: 12))
         }
         .toggleStyle(.switch)
         .controlSize(.mini)
@@ -384,12 +452,12 @@ struct FileRow: View {
                         Text(file.displayName)
                             .fontWeight(.medium)
                             .lineLimit(1)
-                        if store.selection == file.id && store.hasUnsavedChanges {
+                        if store.selection == .file(file.id) && store.hasUnsavedChanges {
                             Circle().fill(.orange).frame(width: 6, height: 6)
                         }
                     }
                     Text(file.exists ? file.subtitle : L10n.text("not found"))
-                        .font(.caption)
+                        .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -462,6 +530,110 @@ struct CollapsedFileRow: View {
     }
 }
 
+// MARK: - Terminal-Zeilen
+
+/// Zeile eines Skript-Laufs: laufende Terminals zeigen einen Fortschrittsring,
+/// beendete den Exit-Status.
+struct TerminalRow: View {
+    @ObservedObject var session: TerminalSession
+
+    var body: some View {
+        HStack(spacing: 10) {
+            TerminalStatusIcon(session: session, size: 15)
+                .frame(width: 26, height: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(session.title)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+                Text(session.statusText)
+                    .font(.system(size: 12))
+                    .foregroundStyle(session.hasFailed ? Color.red : Color.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            Color.clear.frame(width: 26, height: 26)   // Platz für Schließen
+        }
+        .padding(.vertical, 3)
+        .contentShape(Rectangle())
+        .opacity(session.isRunning ? 1 : 0.8)
+    }
+}
+
+/// Eingeklappte Darstellung eines Skript-Laufs.
+struct CollapsedTerminalRow: View {
+    @ObservedObject var session: TerminalSession
+
+    var body: some View {
+        TerminalStatusIcon(session: session, size: 17)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+    }
+}
+
+/// Symbol bzw. Fortschrittsring eines Laufs.
+struct TerminalStatusIcon: View {
+    @ObservedObject var session: TerminalSession
+    let size: CGFloat
+
+    var body: some View {
+        Group {
+            if session.isRunning && session.isBusy {
+                ProgressView()
+                    .controlSize(.small)
+                    .scaleEffect(size >= 17 ? 0.9 : 0.8)
+            } else {
+                Image(systemName: session.hasFailed ? "exclamationmark.circle.fill" : "terminal")
+                    .font(.system(size: size))
+                    .foregroundStyle(session.hasFailed ? Color.red : Color.secondary)
+            }
+        }
+    }
+}
+
+/// Schließt einen Terminal-Eintrag; wird beim Überfahren rot.
+struct TerminalCloseButton: View {
+    @ObservedObject var session: TerminalSession
+    @EnvironmentObject var store: Store
+
+    var body: some View {
+        Hoverable { hovering in
+            Button { store.closeSession(session) } label: {
+                Image(systemName: "xmark")
+                    .foregroundStyle(hovering ? Color.red : Color.secondary)
+                    .frame(width: 26, height: 26)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(hovering ? Color.red.opacity(0.15) : .clear))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .handCursor()
+            .help(L10n.text("Close terminal"))
+        }
+    }
+}
+
+/// Zoom-Bedienung für Editor und Terminal.
+struct ZoomControl: View {
+    @EnvironmentObject var store: Store
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Button { store.zoomOut() } label: { Image(systemName: "minus") }
+                .help(L10n.text("Zoom out (⌘−)"))
+            Text("\(Int(store.fontSize)) pt")
+                .foregroundStyle(.secondary)
+                .frame(width: 34)
+                .monospacedDigit()
+            Button { store.zoomIn() } label: { Image(systemName: "plus") }
+                .help(L10n.text("Zoom in (⌘+)"))
+        }
+        .buttonStyle(.borderless)
+        .font(.system(size: 12))
+    }
+}
+
 // MARK: - Symbol-Picker
 
 struct SymbolPickerSheet: View {
@@ -487,9 +659,9 @@ struct SymbolPickerSheet: View {
                     .background(RoundedRectangle(cornerRadius: 7).fill(currentColor.opacity(0.15)))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(L10n.text("Icon & color"))
-                        .font(.subheadline).bold()
+                        .font(.system(size: 12)).bold()
                     Text(file.displayName)
-                        .font(.caption2)
+                        .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
