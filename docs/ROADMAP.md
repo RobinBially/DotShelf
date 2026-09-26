@@ -8,8 +8,8 @@ Reliable edits, quick access and a useful change history are the product's focus
 ## Available now
 
 The first signed, notarized Universal app is available through GitHub Releases and
-`brew install --cask localfoundry/tap/dotshelf`. The source stays on Robin Bially's
-personal profile; LocalFoundry provides distribution.
+`brew install --cask robin-bially/tap/dotshelf`. The source stays on Robin Bially's
+personal profile; the Homebrew tap lives in the same account.
 
 ## Next
 
@@ -27,9 +27,9 @@ personal profile; LocalFoundry provides distribution.
 
 - Product name: **DotShelf**.
 - English is the development and default UI language. Strings are stored in language resources.
-- Distribution: a signed, notarized Universal macOS app and a Homebrew cask in the LocalFoundry tap.
+- Distribution: a signed, notarized Universal macOS app and a Homebrew cask in the `robin-bially/tap` tap.
 - Preserve the existing bundle ID during the rename so user preferences survive.
-- The source repository is `localfoundry/DotShelf`.
-  LocalFoundry is the distribution brand; its Homebrew tap will host the cask.
+- The source repository is `robin-bially/DotShelf`.
+  The tap `robin-bially/tap` in the same account hosts the cask.
 
 The initial name search was not a trademark or domain clearance.

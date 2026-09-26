@@ -11,11 +11,11 @@ Keep them in one sidebar. Make an edit. Get back to work.
 
 [![macOS](https://img.shields.io/badge/macOS-14%2B-292A36?style=flat-square&logo=apple&logoColor=white)](#get-started)
 [![Swift](https://img.shields.io/badge/SwiftUI_%2B_AppKit-native-7865E9?style=flat-square&logo=swift&logoColor=white)](#why-dotshelf)
-[![Release](https://img.shields.io/github/v/release/localfoundry/DotShelf?style=flat-square&color=7865E9)](https://github.com/localfoundry/DotShelf/releases/latest)
+[![Release](https://img.shields.io/github/v/release/robin-bially/DotShelf?style=flat-square&color=7865E9)](https://github.com/robin-bially/DotShelf/releases/latest)
 
-**[Get started](#get-started)** · **[Features](#a-little-editor-with-the-right-details)** · **[Roadmap](docs/ROADMAP.md)** · **[Feedback](https://github.com/localfoundry/DotShelf/issues)**
+**[Get started](#get-started)** · **[Features](#a-little-editor-with-the-right-details)** · **[Roadmap](docs/ROADMAP.md)** · **[Feedback](https://github.com/robin-bially/DotShelf/issues)**
 
-Built by [Robin Bially](https://github.com/localfoundry) under the LocalFoundry label.
+Built by [Robin Bially](https://github.com/robin-bially).
 
 </div>
 
@@ -59,19 +59,19 @@ Requires **macOS 14 Sonoma or later**. The Universal app runs on
 ### Homebrew
 
 ```sh
-brew install --cask localfoundry/tap/dotshelf
+brew install --cask robin-bially/tap/dotshelf
 ```
 
 Homebrew downloads the verified release from this repository through the
-[LocalFoundry tap](https://github.com/localfoundry/homebrew-tap).
+[Homebrew tap](https://github.com/robin-bially/homebrew-tap).
 To update later, run `brew update && brew upgrade --cask dotshelf`.
 
 ### Direct download
 
-**[Download DotShelf for Mac](https://github.com/localfoundry/DotShelf/releases/latest)**
+**[Download DotShelf for Mac](https://github.com/robin-bially/DotShelf/releases/latest)**
 
 Unzip the download, drag **DotShelf.app** into **Applications**, and open it.
-See the [release notes](https://github.com/localfoundry/DotShelf/releases/latest)
+See the [release notes](https://github.com/robin-bially/DotShelf/releases/latest)
 for changes and the SHA-256 checksum.
 
 > **Early preview:** DotShelf is ready to try, with more improvements planned.
@@ -90,7 +90,7 @@ Requires **Xcode 26.3 or newer**. Select your full Xcode installation as the act
 developer directory, then run:
 
 ```sh
-git clone https://github.com/localfoundry/DotShelf.git
+git clone https://github.com/robin-bially/DotShelf.git
 cd DotShelf
 ./build-app.sh
 open ~/Applications/DotShelf.app
@@ -108,7 +108,7 @@ changes**, **TOML support** and **Quick Open with ⌘P**. The [roadmap](docs/ROA
 explains the ideas and their status.
 
 Have a config workflow DotShelf could make easier?
-[Open an issue](https://github.com/localfoundry/DotShelf/issues) with your use case.
+[Open an issue](https://github.com/robin-bially/DotShelf/issues) with your use case.
 Bug reports and focused pull requests are welcome.
 
 ## Under the hood
