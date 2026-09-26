@@ -186,6 +186,9 @@ EOF
 fi
 
 # --- Veröffentlichen ---------------------------------------------------------
+echo "== Commit pushen"
+git push origin HEAD
+
 echo "== GitHub-Release"
 release_args=("v$VERSION" "$OUTPUT/$ARCHIVE" "$OUTPUT/$ARCHIVE.sha256" "$OUTPUT/Casks/$TAP_FORMULA.rb"
               --repo "$RELEASE_REPOSITORY" --target "$SOURCE_COMMIT" --title "DotShelf $VERSION" --generate-notes)
