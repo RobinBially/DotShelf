@@ -7,16 +7,16 @@
 # Without --publish the script only writes the local artifacts: the notarized
 # ZIP, its SHA-256 and the Homebrew cask into the output directory
 # (.build/releases by default). --publish additionally creates the GitHub release
-# and updates the cask in localfoundry/homebrew-tap. --dry-run checks the
+# and updates the cask in robin-bially/homebrew-tap. --dry-run checks the
 # prerequisites without building; --force tolerates a dirty working tree.
 #
 # Environment:
 #   VERSION             required, x.y.z
 #   BUILD_NUMBER        default: commit count of this checkout
 #   CODE_SIGN_IDENTITY  default: first Developer ID identity in the keychain
-#   NOTARY_PROFILE      default: localfoundry-notary
-#   RELEASE_REPOSITORY  default localfoundry/DotShelf
-#   TAP_REPOSITORY      default localfoundry/homebrew-tap
+#   NOTARY_PROFILE      default: robin-bially-notary
+#   RELEASE_REPOSITORY  default robin-bially/DotShelf
+#   TAP_REPOSITORY      default robin-bially/homebrew-tap
 #   TAP_DIR             existing tap checkout; otherwise cloned temporarily
 #   SKIP_AUDIT=1        skip the online brew audit after the tap push
 #
@@ -34,8 +34,8 @@ done
 
 # Only this explicit command submits an app to Apple for notarization.
 VERSION="${VERSION:?VERSION must be set (x.y.z)}"
-RELEASE_REPOSITORY="${RELEASE_REPOSITORY:-localfoundry/DotShelf}"
-TAP_REPOSITORY="${TAP_REPOSITORY:-localfoundry/homebrew-tap}"
+RELEASE_REPOSITORY="${RELEASE_REPOSITORY:-robin-bially/DotShelf}"
+TAP_REPOSITORY="${TAP_REPOSITORY:-robin-bially/homebrew-tap}"
 TAP_FORMULA="dotshelf"
 ARCHIVE="DotShelf-$VERSION.zip"
 
@@ -60,7 +60,7 @@ mkdir -p "$OUTPUT"
 OUTPUT="$(cd "$OUTPUT" && pwd)"
 
 BUILD_NUMBER="${BUILD_NUMBER:-$(git rev-list --count HEAD)}"
-NOTARY_PROFILE="${NOTARY_PROFILE:-localfoundry-notary}"
+NOTARY_PROFILE="${NOTARY_PROFILE:-robin-bially-notary}"
 [[ "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]] || { echo "BUILD_NUMBER must be a positive integer, got: $BUILD_NUMBER" >&2; exit 1; }
 if [[ -z "${CODE_SIGN_IDENTITY:-}" ]]; then
     CODE_SIGN_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
@@ -233,7 +233,7 @@ else
         echo "   Entwurf: Online-Audit erst nach dem Veröffentlichen des Releases."
     elif [[ "${SKIP_AUDIT:-0}" != 1 ]] && command -v brew >/dev/null; then
         brew update -q
-        brew audit --cask --strict --online "localfoundry/tap/$TAP_FORMULA"
+        brew audit --cask --strict --online "robin-bially/tap/$TAP_FORMULA"
     fi
 fi
 

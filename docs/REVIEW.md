@@ -42,11 +42,11 @@ network filesystems and large-file performance have not been exhaustively tested
 
 ## Distribution
 
-- The source repository is public under `localfoundry/DotShelf`.
+- The source repository is public under `robin-bially/DotShelf`.
 - Version 0.1.0 ships as a Developer-ID-signed, notarized Universal ZIP with a
   stapled ticket and SHA-256 checksum.
-- `localfoundry/homebrew-tap` contains the generated DotShelf cask:
-  `brew install --cask localfoundry/tap/dotshelf`.
+- `robin-bially/homebrew-tap` contains the generated DotShelf cask:
+  `brew install --cask robin-bially/tap/dotshelf`.
 - CI builds and tests; the manual release workflow can produce notarized Universal
   builds as drafts once its signing secrets have been configured.
 

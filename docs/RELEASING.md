@@ -32,7 +32,7 @@ VERSION=1.0.0 ./scripts/release.sh              # build the notarized artifacts
 VERSION=1.0.0 ./scripts/release.sh --publish    # also publish release and cask
 ```
 
-`BUILD_NUMBER` defaults to the commit count, `CODE_SIGN_IDENTITY` to the first Developer ID identity in the keychain, `NOTARY_PROFILE` to `localfoundry-notary` and `RELEASE_REPOSITORY` to `localfoundry/DotShelf`; set them explicitly on another machine or for another team. `--dry-run` checks the prerequisites without building, `--force` tolerates a dirty working tree and `--draft` creates the GitHub release as a draft.
+`BUILD_NUMBER` defaults to the commit count, `CODE_SIGN_IDENTITY` to the first Developer ID identity in the keychain, `NOTARY_PROFILE` to `robin-bially-notary` and `RELEASE_REPOSITORY` to `robin-bially/DotShelf`; set them explicitly on another machine or for another team. `--dry-run` checks the prerequisites without building, `--force` tolerates a dirty working tree and `--draft` creates the GitHub release as a draft.
 
 This explicit command builds Universal (`arm64 x86_64`) by default and submits the app to Apple. `NOTARY_KEYCHAIN` selects an optional keychain for the profile. Local callers can override `ARCHS`.
 
@@ -42,9 +42,9 @@ Only after Apple returns `Accepted`, stapling succeeds, and signature and Gateke
 - `DotShelf-VERSION.zip.sha256`, calculated from that final archive.
 - `Casks/dotshelf.rb`, containing that version, its real archive SHA-256, and the matching GitHub release URL.
 
-Existing ZIP and checksum files are never overwritten. The local cask represents the latest generated release and is replaced when another version is generated. `RELEASE_REPOSITORY` must identify the repository that will host the release; it is explicit to avoid guessing a URL after a repository rename. The source repository is `localfoundry/DotShelf`.
+Existing ZIP and checksum files are never overwritten. The local cask represents the latest generated release and is replaced when another version is generated. `RELEASE_REPOSITORY` must identify the repository that will host the release; it is explicit to avoid guessing a URL after a repository rename. The source repository is `robin-bially/DotShelf`.
 
-Without `--publish` the script writes those artifacts and stops. With `--publish` it creates the GitHub release for the tagged commit and copies `Casks/dotshelf.rb` into `localfoundry/homebrew-tap` — cloned temporarily when `TAP_DIR` is not a checkout — refusing a downgrade or a same-version cask with different bytes, then runs `brew audit --cask --strict --online`. `SKIP_AUDIT=1` skips that audit. The cask generator does not independently notarize or attest an arbitrary archive; `release.sh` invokes it only after the verification above.
+Without `--publish` the script writes those artifacts and stops. With `--publish` it creates the GitHub release for the tagged commit and copies `Casks/dotshelf.rb` into `robin-bially/homebrew-tap` — cloned temporarily when `TAP_DIR` is not a checkout — refusing a downgrade or a same-version cask with different bytes, then runs `brew audit --cask --strict --online`. `SKIP_AUDIT=1` skips that audit. The cask generator does not independently notarize or attest an arbitrary archive; `release.sh` invokes it only after the verification above.
 
 ## Publishing a release
 
@@ -63,18 +63,18 @@ For manual verification, download the published ZIP, check its checksum and laun
 
 ## Homebrew installation
 
-DotShelf is available from the public [`localfoundry/homebrew-tap`](https://github.com/localfoundry/homebrew-tap):
+DotShelf is available from the public [`robin-bially/homebrew-tap`](https://github.com/robin-bially/homebrew-tap):
 
 ```sh
-brew install --cask localfoundry/tap/dotshelf
+brew install --cask robin-bially/tap/dotshelf
 brew update
 brew upgrade --cask dotshelf
 ```
 
 For each update, publish the verified release first, then copy its generated
 `Casks/dotshelf.rb` into the tap. Review the version, public URL and SHA-256.
-Run `brew style localfoundry/tap/dotshelf` and
-`brew audit --cask --strict --online localfoundry/tap/dotshelf`, then perform a real install.
+Run `brew style robin-bially/tap/dotshelf` and
+`brew audit --cask --strict --online robin-bially/tap/dotshelf`, then perform a real install.
 The tap CI also installs the app and verifies its signature, stapled ticket and both architectures.
 
 Never publish a placeholder checksum or a cask pointing at an unpublished draft.
